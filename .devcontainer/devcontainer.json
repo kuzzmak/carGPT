@@ -24,9 +24,14 @@
 				"ms-toolsai.jupyter",
 				"njpwerner.autodocstring",
 				"tamasfe.even-better-toml",
-				"GitHub.copilot"
+				"GitHub.copilot",
+				"charliermarsh.ruff"
 			]
 		}
+	},
+
+	"remoteEnv": {
+		"OPENAI_API_KEY": "your-openai-api-key-here"
 	}
 
 	// 👇 Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
