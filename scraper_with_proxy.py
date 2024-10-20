@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+# TODO: fix this
 sys.path.append('/home/tonkec/Documents/carGPT/carGPT/scraper')
 os.environ['SCRAPY_SETTINGS_MODULE'] = 'carGPT.scraper.scraper.settings'
 
@@ -16,6 +17,7 @@ from carGPT.scraper.scraper.spiders.njuskalo_spider import NjuskaloSpider
 
 if __name__ == '__main__':
     SOCKS_PORT = 9050
+    # TODO: fix this
     TOR_PATH = os.path.normpath(
         "/home/tonkec/Downloads/tor-browser/Browser/TorBrowser/Tor/tor")
     tor_process = stem.process.launch_tor_with_config(
