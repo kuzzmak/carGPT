@@ -13,6 +13,10 @@ ruff = "^0.4.4"
 langchain-community = "^0.2.1"
 google-api-python-client = "^2.131.0"
 scrapy = "^2.11.2"
+stem = "^1.8.2"
+pysocks = "^1.7.1"
+pproxy = "^2.7.9"
+beautifulsoup4 = "^4.12.3"
 
 [build-system]
 requires = ["poetry-core"]

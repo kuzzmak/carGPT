@@ -192,6 +192,27 @@ six = "*"
 visualize = ["Twisted (>=16.1.1)", "graphviz (>0.5.1)"]
 
 [[package]]
+name = "beautifulsoup4"
+version = "4.12.3"
+description = "Screen-scraping library"
+optional = false
+python-versions = ">=3.6.0"
+files = [
+    {file = "beautifulsoup4-4.12.3-py3-none-any.whl", hash = "sha256:b80878c9f40111313e55da8ba20bdba06d8fa3969fc68304167741bbf9e082ed"},
+    {file = "beautifulsoup4-4.12.3.tar.gz", hash = "sha256:74e3d1928edc070d21748185c46e3fb33490f22f52a3addee9aee0f4f7781051"},
+]
+
+[package.dependencies]
+soupsieve = ">1.2"
+
+[package.extras]
+cchardet = ["cchardet"]
+chardet = ["chardet"]
+charset-normalizer = ["charset-normalizer"]
+html5lib = ["html5lib"]
+lxml = ["lxml"]
+
+[[package]]
 name = "cachetools"
 version = "5.3.3"
 description = "Extensible memoizing collections and decorators"
@@ -1534,6 +1555,22 @@ packaging = "*"
 w3lib = ">=1.19.0"
 
 [[package]]
+name = "pproxy"
+version = "2.7.9"
+description = "Proxy server that can tunnel among remote servers by regex rules."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pproxy-2.7.9-py3-none-any.whl", hash = "sha256:a073d02616a47c43e1d20a547918c307dbda598c6d53869b165025f3cfe58e80"},
+]
+
+[package.extras]
+accelerated = ["pycryptodome (>=3.7.2)", "uvloop (>=0.13.0)"]
+daemon = ["python-daemon (>=2.2.3)"]
+quic = ["aioquic (>=0.9.7)"]
+sshtunnel = ["asyncssh (>=2.5.0)"]
+
+[[package]]
 name = "protego"
 version = "0.3.1"
 description = "Pure-Python robots.txt parser with support for modern conventions"
@@ -1781,6 +1818,18 @@ optional = false
 python-versions = "*"
 files = [
     {file = "PyPyDispatcher-2.1.2.tar.gz", hash = "sha256:b6bec5dfcff9d2535bca2b23c80eae367b1ac250a645106948d315fcfa9130f2"},
+]
+
+[[package]]
+name = "pysocks"
+version = "1.7.1"
+description = "A Python SOCKS client module. See https://github.com/Anorov/PySocks for more information."
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+files = [
+    {file = "PySocks-1.7.1-py27-none-any.whl", hash = "sha256:08e69f092cc6dbe92a0fdd16eeb9b9ffbc13cadfe5ca4c7bd92ffb078b293299"},
+    {file = "PySocks-1.7.1-py3-none-any.whl", hash = "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5"},
+    {file = "PySocks-1.7.1.tar.gz", hash = "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0"},
 ]
 
 [[package]]
@@ -2111,6 +2160,17 @@ files = [
 ]
 
 [[package]]
+name = "soupsieve"
+version = "2.5"
+description = "A modern CSS selector implementation for Beautiful Soup."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "soupsieve-2.5-py3-none-any.whl", hash = "sha256:eaa337ff55a1579b6549dc679565eac1e3d000563bcb1c8ab0d0fefbc0c2cdc7"},
+    {file = "soupsieve-2.5.tar.gz", hash = "sha256:5663d5a7b3bfaeee0bc4372e7fc48f9cff4940b3eec54a6451cc5299f1097690"},
+]
+
+[[package]]
 name = "sqlalchemy"
 version = "2.0.30"
 description = "Database Abstraction Library"
@@ -2196,6 +2256,16 @@ postgresql-psycopg2cffi = ["psycopg2cffi"]
 postgresql-psycopgbinary = ["psycopg[binary] (>=3.0.7)"]
 pymysql = ["pymysql"]
 sqlcipher = ["sqlcipher3_binary"]
+
+[[package]]
+name = "stem"
+version = "1.8.2"
+description = "Stem is a Python controller library that allows applications to interact with Tor (https://www.torproject.org/)."
+optional = false
+python-versions = "*"
+files = [
+    {file = "stem-1.8.2.tar.gz", hash = "sha256:83fb19ffd4c9f82207c006051480389f80af221a7e4783000aedec4e384eb582"},
+]
 
 [[package]]
 name = "tenacity"
@@ -2593,4 +2663,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "c87d5fab0ebcfdc376592cb812b6f23042b47e5db80e322cf7b66291952398d9"
+content-hash = "7dff66a1cff9da304285ad39e60b5fd30145e0213b0c56e178febdd641c9558a"
