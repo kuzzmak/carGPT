@@ -2,7 +2,7 @@ from langchain_community.utilities import SQLDatabase
 
 
 class Database:
-    """Singleton database class for articles.
+    """Singleton database class for ads.
     """
 
     _instance = None
@@ -10,7 +10,7 @@ class Database:
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(Database, cls).__new__(cls)
-            cls._instance.db = SQLDatabase.from_uri("sqlite:///articles.db")
+            cls._instance.db = SQLDatabase.from_uri("sqlite:///ads.db")
         return cls._instance
 
     @property
