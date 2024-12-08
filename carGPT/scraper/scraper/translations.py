@@ -25,7 +25,7 @@ TRANSLATIONS = {
     "Prosječna emisija CO2": "average_CO2_emission",
     "Razgledavanje putem video poziva": "video_call_viewing",
     "Plin": "gas",
-    "Auto jamstvo": "auto_warranty",
+    "Jamstvo": "auto_warranty",
     "Broj vrata": "number_of_doors",
     "Oblik karoserije": "chassis_type",
     "Broj sjedala": "number_of_seats",
