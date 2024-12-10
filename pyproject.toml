@@ -6,17 +6,14 @@ authors = ["Antonio Kuzminski <kuzminski.antonio@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
-langchain = "^0.2.0"
-langchain-openai = "^0.1.7"
+python = "^3.12"
 ruff = "^0.4.4"
-langchain-community = "^0.2.1"
-google-api-python-client = "^2.131.0"
-scrapy = "^2.11.2"
-stem = "^1.8.2"
-pysocks = "^1.7.1"
-pproxy = "^2.7.9"
-beautifulsoup4 = "^4.12.3"
+selenium = "^4.27.1"
+langchain-community = "^0.3.10"
+psycopg2 = "^2.9.10"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]
