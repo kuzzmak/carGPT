@@ -1,0 +1,14 @@
+services:
+  backend:
+    build:
+      context: carGPT/backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - carGPT/backend/.env
+
+  frontend:
+    build:
+      context: carGPT/frontend
+    ports:
+      - "8501:8501"
