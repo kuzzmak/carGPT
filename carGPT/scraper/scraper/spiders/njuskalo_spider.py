@@ -15,9 +15,7 @@ class NjuskaloSpider(scrapy.Spider):
     curr_page = 1
 
     def start_requests(self) -> Iterable[Request]:
-        yield Request(
-            url=self.url_template.format(page=self.curr_page),
-        )
+        yield Request(url=self.url_template.format(page=self.curr_page))
 
     def parse(self, response):
         self.logger.info(f"Parsing page: {self.curr_page}")
@@ -25,7 +23,8 @@ class NjuskaloSpider(scrapy.Spider):
         soup = BeautifulSoup(response.text, "lxml")
 
         next_page_link = soup.find_all(
-            "button", class_="Pagination-link js-veza-stranica")
+            "button", class_="Pagination-link js-veza-stranica"
+        )
         if not next_page_link:
             self.logger.info("No next page found")
             return
@@ -36,21 +35,27 @@ class NjuskaloSpider(scrapy.Spider):
         prev_day_date = today - timedelta(days=1)
         yesterday = False
 
-        for idx, ul in enumerate(soup.find_all("ul", class_="EntityList-items")):
+        for idx, ul in enumerate(
+            soup.find_all("ul", class_="EntityList-items")
+        ):
             # on first page relevant car articles section is third while using find and first on other pages
-            if (self.curr_page == 1 and idx == 2) or (self.curr_page > 1 and idx == 0):
+            if (self.curr_page == 1 and idx == 2) or (
+                self.curr_page > 1 and idx == 0
+            ):
                 for li in ul.find_all("li", recursive=False):
                     try:
                         article_link = li.article.h3.a["href"]
                         self.logger.info(f"Found article link: {article_link}")
                         date = li.find(
-                            "div", class_="entity-pub-date").time.contents[0]
+                            "div", class_="entity-pub-date"
+                        ).time.contents[0]
                         date = datetime.strptime(date, "%d.%m.%Y.")
                         self.logger.info(f"Article date: {date}")
                         # if the date is from yesterday, stop the search
                         if date.date() == prev_day_date:
                             self.logger.info(
-                                "Yesterday's articles found, stopping search")
+                                "Yesterday's articles found, stopping search"
+                            )
                             yesterday = True
                             break
                         article_links.append(article_link)
@@ -67,7 +72,10 @@ class NjuskaloSpider(scrapy.Spider):
 
         if not yesterday:
             self.logger.info(f"Going to next page: {self.curr_page}")
-            yield response.follow(self.url_template.format(page=self.curr_page), callback=self.parse)
+            yield response.follow(
+                self.url_template.format(page=self.curr_page),
+                callback=self.parse,
+            )
 
         # with open('articles.html', 'w') as f:
         #     f.write(response.text)
@@ -82,9 +90,9 @@ class NjuskaloSpider(scrapy.Spider):
 
         additional_info = {}
         additional_info_html = soup.find_all(
-            "section", class_="ClassifiedDetailPropertyGroups-group")
+            "section", class_="ClassifiedDetailPropertyGroups-group"
+        )
         for info_html in additional_info_html:
-
             if info_html.h3.contents[0] != "Dodatni podaci":
                 continue
 
@@ -112,20 +120,24 @@ class NjuskaloSpider(scrapy.Spider):
                 key_translated = TRANSLATIONS.get(section_name, None)
                 if key_translated is None:
                     self.logger.error(
-                        f"Found key: \"{section_name}\" which is not translated.")
+                        f'Found key: "{section_name}" which is not translated.'
+                    )
                     continue
                 additional_info[key_translated] = section_val
 
             break
 
         info_html = soup.find(
-            "dl", class_="ClassifiedDetailBasicDetails-list cf")
+            "dl", class_="ClassifiedDetailBasicDetails-list cf"
+        )
         dt_all = info_html.find_all("dt")
         dd_all = info_html.find_all("dd")
         article_title = soup.find(
-            "h1", class_="ClassifiedDetailSummary-title").contents[0]
+            "h1", class_="ClassifiedDetailSummary-title"
+        ).contents[0]
         price = soup.find(
-            "dd", class_="ClassifiedDetailSummary-priceDomestic").contents[0]
+            "dd", class_="ClassifiedDetailSummary-priceDomestic"
+        ).contents[0]
         price = clean_text(price)
         item = NjuskaloCarItem()
         item["url"] = response.url
@@ -139,7 +151,8 @@ class NjuskaloSpider(scrapy.Spider):
             translated_key = TRANSLATIONS.get(key, None)
             if translated_key is None:
                 self.logger.error(
-                    f"Found key: \"{key}\" which is not translated.")
+                    f'Found key: "{key}" which is not translated.'
+                )
                 continue
 
             val = dd.span.contents[0]
