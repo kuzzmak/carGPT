@@ -1,0 +1,19 @@
+version: '3.8'
+
+# Production overrides for docker-compose.yml
+services:
+  backend:
+    environment:
+      # Production settings
+      UVICORN_RELOAD: "false"
+      UVICORN_WORKERS: "4"
+      LOG_LEVEL: "info"
+    # Remove volume mounting for production
+    volumes: []
+    # Use production command
+    command: ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+    
+  postgres:
+    # Use stronger password in production
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_password_here}

@@ -1,29 +1,42 @@
-# backend/Dockerfile
-FROM python:3.10-slim
+# Use Python 3.12 slim image
+FROM python:3.12-slim
 
-# Set environment variables for Poetry
-ENV POETRY_VERSION=1.8.3 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    PYTHONDONTWRITEBYTECODE=1 \
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Install Poetry
-RUN pip install --no-cache-dir poetry==$POETRY_VERSION
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install uv
 
 # Set the working directory
 WORKDIR /app
 
-# Copy only the necessary files to install dependencies
-COPY pyproject.toml poetry.lock /app/
+# Copy dependency files
+COPY pyproject.toml uv.lock* ./
 
-# Install dependencies
-RUN poetry install --no-root
+# Install dependencies using uv
+RUN uv sync --frozen
 
 # Copy the application code
-COPY . /app
+COPY . .
+
+# Create a non-root user for security
+RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+USER app
 
 # Expose the port the app runs on
 EXPOSE 8000
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
 # Run the application
-CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
