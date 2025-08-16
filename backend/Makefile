@@ -104,15 +104,12 @@ db-restore: ## Restore database from backup (requires BACKUP_FILE=path)
 	$(COMPOSE_CMD) exec -T postgres psql -U adsuser ads_db < $(BACKUP_FILE)
 	@echo "📥 Database restored from $(BACKUP_FILE)"
 
-# Legacy targets for compatibility
-start: up ## Legacy: Start services (use 'up' instead)
-
 # FastAPI server commands
 .PHONY: run run-dev run-prod
 
 # Start FastAPI server in development mode
 run: ## Start FastAPI server with auto-reload
-	uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+	uv run uvicorn src.backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Alternative development server command
 run-dev: ## Start FastAPI development server

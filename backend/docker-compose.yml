@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -13,7 +11,7 @@ services:
       POSTGRES_INITDB_ARGS: "--auth-local=trust"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./src/backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "${CARGPT_DB_PORT:-5432}:5432"
     networks:
@@ -28,7 +26,7 @@ services:
   # FastAPI Backend
   backend:
     build: 
-      context: .
+      context: src/backend
       dockerfile: Dockerfile
     container_name: cargpt-backend
     restart: unless-stopped

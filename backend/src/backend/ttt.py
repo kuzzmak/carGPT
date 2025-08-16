@@ -3,30 +3,29 @@
 Tor + Firefox Selenium scraper for Njuškalo cars page
 """
 
+from datetime import datetime, timedelta
 import logging
 import os
 import pprint
 import random
 import re
-import requests
 import signal
 import subprocess
 import time
-from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
+import requests
 from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
-from carGPT.backend.database.database import Database
-from translations import TRANSLATIONS
-
+from backend.database import Database
+from backend.translations import TRANSLATIONS
 
 PAGE_TIMEOUT = 30
 
@@ -417,7 +416,7 @@ def round_up_to_next_hour(dt: datetime) -> datetime:
         return dt
     return dt.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
 
-def parse_date_string(date_str: str, base_time: Optional[datetime] = None):
+def parse_date_string(date_str: str, base_time: datetime | None = None):
     """
     Parses strings like '26 dana i 21 sat' into a datetime object rounded up to the next full hour.
     Returns None for 'do prodaje'.

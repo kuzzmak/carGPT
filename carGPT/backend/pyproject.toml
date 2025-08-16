@@ -1,7 +1,7 @@
 [project]
 name = "cargpt-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Backend services for CarGPT - car advertisement database and API"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,4 +13,23 @@ dependencies = [
     "fastapi>=0.104.1",
     "uvicorn>=0.24.0",
     "pydantic>=2.5.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["database", "tests"]
+package-dir = {"" = "."}
+
+[tool.setuptools.package-data]
+"*" = ["*.sql"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=0.23.0",
+    "docker>=7.0.0",
+    "testcontainers[postgres]>=4.0.0",
 ]

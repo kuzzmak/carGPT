@@ -5,7 +5,7 @@ Simple test script to verify the FastAPI backend is working correctly.
 
 import requests
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 BASE_URL = "http://localhost:8000"
 
