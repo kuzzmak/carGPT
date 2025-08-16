@@ -33,6 +33,11 @@ up-tools: ## Start services with PgAdmin
 	@echo "📝 Backend API: http://localhost:8000"
 	@echo "🗄️  PgAdmin: http://localhost:5050"
 
+up-db: ## Start only the database service
+	$(COMPOSE_CMD) up -d postgres
+	@echo "🗄️  Database started!"
+	@echo "📊 PostgreSQL: localhost:5432"
+
 down: ## Stop all services
 	$(COMPOSE_CMD) down
 	@echo "🛑 Services stopped"
@@ -102,27 +107,53 @@ db-restore: ## Restore database from backup (requires BACKUP_FILE=path)
 # Legacy targets for compatibility
 start: up ## Legacy: Start services (use 'up' instead)
 
-# Target to start server without poetry shell
-.PHONY: run
-run:
-	poetry run uvicorn $(APP_MODULE) --host $(HOST) --port $(PORT) --reload
+# FastAPI server commands
+.PHONY: run run-dev run-prod
 
-# Install dependencies using Poetry
-.PHONY: install
-install:
-	poetry install
+# Start FastAPI server in development mode
+run: ## Start FastAPI server with auto-reload
+	uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Alternative development server command
+run-dev: ## Start FastAPI development server
+	uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+
+# Start FastAPI server in production mode
+run-prod: ## Start FastAPI server in production mode
+	uv run uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Quick server start using the start_server.sh script
+quick-start: ## Quick start using start_server.sh script
+	./start_server.sh
+
+# Check API health
+health-check: ## Check if the API server is running
+	@curl -f http://localhost:8000/health || echo "❌ Server not running"
+
+# Open API documentation in browser
+docs: ## Open API documentation in default browser
+	@echo "📝 Opening API docs at http://localhost:8000/docs"
+	@python -m webbrowser http://localhost:8000/docs || echo "Please open http://localhost:8000/docs manually"
+
+# Install dependencies using uv
+.PHONY: install sync
+install: ## Install dependencies using uv
+	uv sync
+
+sync: ## Sync dependencies using uv (alias for install)
+	uv sync
 
 # Format code with black
 .PHONY: format
-format:
-	poetry run black .
+format: ## Format code with black
+	uv run black .
 
 # Lint code with flake8
 .PHONY: lint
-lint:
-	poetry run flake8 .
+lint: ## Lint code with flake8
+	uv run flake8 .
 
-# Run tests
-.PHONY: test
-test:
-	poetry run pytest
+# Run tests with pytest
+.PHONY: test-unit
+test-unit: ## Run unit tests with pytest
+	uv run pytest

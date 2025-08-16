@@ -5,6 +5,8 @@ from typing import Optional, Dict, Any, List
 
 import psycopg2
 
+from columns import AdColumns
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -105,7 +107,7 @@ class Database:
             eco_category VARCHAR(20),
             number_of_gears VARCHAR(20),
             warranty VARCHAR(20),
-            average_CO2_emission VARCHAR(20),
+            average_co2_emission VARCHAR(20),
             video_call_viewing BOOLEAN,
             gas BOOLEAN,
             auto_warranty VARCHAR(20),
@@ -116,7 +118,8 @@ class Database:
             color VARCHAR(20),
             metalic_color BOOLEAN,
             suspension VARCHAR(20),
-            tire_size VARCHAR(20)
+            tire_size VARCHAR(20),
+            internal_code VARCHAR(50)
         );
         """
         
@@ -140,18 +143,8 @@ class Database:
         Returns:
             The ID of the inserted ad, or None if insertion failed
         """
-        # Define the columns that can be inserted (excluding id and insertion_time)
-        allowed_columns = [
-            'date_created', 'price', 'location', 'make', 'model', 'type',
-            'chassis_number', 'manufacture_year', 'model_year', 'mileage',
-            'engine', 'power', 'displacement', 'transmission', 'condition',
-            'owner', 'service_book', 'garaged', 'in_traffic_since',
-            'first_registration_in_croatia', 'registered_until', 'fuel_consumption',
-            'eco_category', 'number_of_gears', 'warranty', 'average_CO2_emission',
-            'video_call_viewing', 'gas', 'auto_warranty', 'number_of_doors',
-            'chassis_type', 'number_of_seats', 'drive_type', 'color',
-            'metalic_color', 'suspension', 'tire_size'
-        ]
+        # Get insertable columns from the enum
+        allowed_columns = AdColumns.get_insertable_columns()
         
         # Filter ad_data to only include allowed columns
         filtered_data = {k: v for k, v in ad_data.items() if k in allowed_columns}
@@ -297,7 +290,7 @@ class Database:
         values = []
         
         for key, value in update_data.items():
-            if key not in ['id', 'insertion_time']:  # Don't allow updating these fields
+            if key not in [AdColumns.ID, AdColumns.INSERTION_TIME]:  # Don't allow updating these fields
                 set_clauses.append(f"{key} = %s")
                 values.append(value)
         
@@ -384,7 +377,7 @@ class Database:
             List of dictionaries containing matching ad data
         """
         if fields is None:
-            fields = ['make', 'model', 'location', 'type']
+            fields = [AdColumns.MAKE, AdColumns.MODEL, AdColumns.LOCATION, AdColumns.TYPE]
         
         # Build search conditions
         conditions = []

@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS ads (
     eco_category VARCHAR(20),
     number_of_gears VARCHAR(20),
     warranty VARCHAR(20),
-    average_CO2_emission VARCHAR(20),
+    average_co2_emission VARCHAR(20),
     video_call_viewing BOOLEAN,
     gas BOOLEAN,
     auto_warranty VARCHAR(20),
