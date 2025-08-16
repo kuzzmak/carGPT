@@ -11,13 +11,15 @@ from columns import AdColumns
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+ADS_TABLE_NAME = "ads"
+
 
 class Database:
-    """Singleton database class for car ads.
+    f"""Singleton database class for car ads.
     
     This class provides a connection to PostgreSQL database and methods
-    to interact with the ads table based on the schema defined in the init script.
-    
+    to interact with the {ADS_TABLE_NAME} table based on the schema defined in the init script.
+
     Configuration can be provided via:
     1. Environment variables (CARGPT_DB_*)
     2. Constructor parameters
@@ -78,8 +80,8 @@ class Database:
 
     def create_ads_table(self) -> bool:
         """Create the ads table if it doesn't exist."""
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS ads (
+        create_table_query = f"""
+        CREATE TABLE IF NOT EXISTS {ADS_TABLE_NAME} (
             id SERIAL PRIMARY KEY,
             insertion_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             date_created TIMESTAMP NOT NULL,
@@ -128,7 +130,7 @@ class Database:
                 with conn.cursor() as cursor:
                     cursor.execute(create_table_query)
                     conn.commit()
-                    logger.info("Table 'ads' created successfully or already exists!")
+                    logger.info(f"Table '{ADS_TABLE_NAME}' created successfully or already exists!")
                     return True
         except psycopg2.Error as e:
             logger.error(f"Error creating table: {e}")
@@ -160,7 +162,7 @@ class Database:
         columns_str = ', '.join(columns)
         
         insert_query = f"""
-        INSERT INTO ads ({columns_str})
+        INSERT INTO {ADS_TABLE_NAME} ({columns_str})
         VALUES ({placeholders})
         RETURNING id;
         """
@@ -229,7 +231,7 @@ class Database:
             return self.get_all_ads(limit)
         
         where_clause = " AND ".join(conditions)
-        query = f"SELECT * FROM ads WHERE {where_clause} LIMIT %s;"
+        query = f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} LIMIT %s;"
         values.append(limit)
         
         try:
@@ -255,8 +257,8 @@ class Database:
         Returns:
             List of dictionaries containing ad data
         """
-        query = "SELECT * FROM ads ORDER BY insertion_time DESC LIMIT %s;"
-        
+        query = f"SELECT * FROM {ADS_TABLE_NAME} ORDER BY insertion_time DESC LIMIT %s;"
+
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
@@ -300,8 +302,8 @@ class Database:
         
         values.append(ad_id)  # Add ad_id for WHERE clause
         set_clause = ", ".join(set_clauses)
-        query = f"UPDATE ads SET {set_clause} WHERE id = %s;"
-        
+        query = f"UPDATE {ADS_TABLE_NAME} SET {set_clause} WHERE id = %s;"
+
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
@@ -328,8 +330,8 @@ class Database:
         Returns:
             True if deletion was successful, False otherwise
         """
-        query = "DELETE FROM ads WHERE id = %s;"
-        
+        query = f"DELETE FROM {ADS_TABLE_NAME} WHERE id = %s;"
+
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
@@ -353,8 +355,8 @@ class Database:
         Returns:
             Total number of ads
         """
-        query = "SELECT COUNT(*) FROM ads;"
-        
+        query = f"SELECT COUNT(*) FROM {ADS_TABLE_NAME};"
+
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
@@ -389,7 +391,7 @@ class Database:
             values.append(search_pattern)
         
         where_clause = " OR ".join(conditions)
-        query = f"SELECT * FROM ads WHERE {where_clause} ORDER BY insertion_time DESC LIMIT %s;"
+        query = f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} ORDER BY insertion_time DESC LIMIT %s;"
         values.append(limit)
         
         try:
