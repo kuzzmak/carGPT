@@ -138,7 +138,9 @@ class Database:
         allowed_columns = AdColumns.get_insertable_columns()
 
         # Filter ad_data to only include allowed columns
-        filtered_data = {k: v for k, v in ad_data.items() if k in allowed_columns}
+        filtered_data = {
+            k: v for k, v in ad_data.items() if k in allowed_columns
+        }
 
         if not filtered_data:
             logger.error("No valid data provided for insertion")
@@ -220,7 +222,9 @@ class Database:
             return self.get_all_ads(limit)
 
         where_clause = " AND ".join(conditions)
-        query = f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} LIMIT %s;"
+        query = (
+            f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} LIMIT %s;"
+        )
         values.append(limit)
 
         try:
@@ -230,7 +234,9 @@ class Database:
 
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row, strict=True)) for row in results]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error retrieving ads: {e}")
@@ -254,7 +260,9 @@ class Database:
 
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row, strict=True)) for row in results]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error retrieving ads: {e}")
@@ -399,7 +407,9 @@ class Database:
 
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row, strict=True)) for row in results]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error searching ads: {e}")

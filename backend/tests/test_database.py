@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="session")
 def postgres_container(
-    test_db_name: str, test_db_user: str, test_db_password: str, test_db_port: int
+    test_db_name: str,
+    test_db_user: str,
+    test_db_password: str,
+    test_db_port: int,
 ) -> Generator[dict[str, Any], None, None]:
     """Session-scoped fixture that provides a PostgreSQL container."""
     with PostgresContainer(
@@ -38,7 +41,9 @@ def postgres_container(
 
 
 @pytest.fixture(scope="function")
-def database(postgres_container: dict[str, Any]) -> Generator[Database, None, None]:
+def database(
+    postgres_container: dict[str, Any],
+) -> Generator[Database, None, None]:
     """Function-scoped fixture that provides a fresh Database instance for each test."""
     # Clear singleton instance to ensure fresh database for each test
     Database._instance = None
@@ -276,10 +281,14 @@ class TestDatabase:
         assert x5_ads[0][AdColumns.ID] == ad1_id
 
         # Search with non-existent criteria
-        non_existent = database.get_ads_by_criteria({AdColumns.MAKE: "NonExistentMake"})
+        non_existent = database.get_ads_by_criteria(
+            {AdColumns.MAKE: "NonExistentMake"}
+        )
         assert len(non_existent) == 0
 
-    def test_get_ads_by_criteria_empty_criteria(self, database, sample_ad_data):
+    def test_get_ads_by_criteria_empty_criteria(
+        self, database, sample_ad_data
+    ):
         """Test getting ads with empty criteria."""
         database.insert_ad(sample_ad_data)
 
@@ -428,14 +437,20 @@ class TestDatabase:
         assert len(results) == 1
 
         # Search in transmission field
-        results = database.search_ads_by_text("Auto", fields=[AdColumns.TRANSMISSION])
+        results = database.search_ads_by_text(
+            "Auto", fields=[AdColumns.TRANSMISSION]
+        )
         assert len(results) == 1
 
         # Search in non-matching field
-        results = database.search_ads_by_text("TDI", fields=[AdColumns.TRANSMISSION])
+        results = database.search_ads_by_text(
+            "TDI", fields=[AdColumns.TRANSMISSION]
+        )
         assert len(results) == 0
 
-    def test_search_ads_by_text_case_insensitive(self, database, sample_ad_data):
+    def test_search_ads_by_text_case_insensitive(
+        self, database, sample_ad_data
+    ):
         """Test that text search is case insensitive."""
         ad_data = sample_ad_data.copy()
         ad_data[AdColumns.MAKE] = "BMW"

@@ -112,7 +112,9 @@ class TextSearchRequest(BaseModel):
     """Model for text search request."""
 
     search_term: str = Field(..., description="Text to search for")
-    fields: list[str] | None = Field(default=None, description="Fields to search in")
+    fields: list[str] | None = Field(
+        default=None, description="Fields to search in"
+    )
 
 
 class HealthResponse(BaseModel):
@@ -167,7 +169,9 @@ async def get_ads(
         return db.get_all_ads(limit=limit)
     except Exception as e:
         logger.error(f"Error fetching ads: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") from e
+        raise HTTPException(
+            status_code=500, detail="Internal server error"
+        ) from e
 
 
 @app.get("/ads/{ad_id}", response_model=AdResponse)
@@ -182,7 +186,9 @@ async def get_ad_by_id(ad_id: int):
         raise
     except Exception as e:
         logger.error(f"Error fetching ad {ad_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") from e
+        raise HTTPException(
+            status_code=500, detail="Internal server error"
+        ) from e
 
 
 @app.post("/ads/search", response_model=list[AdResponse])
@@ -218,7 +224,9 @@ async def search_ads(
         return db.get_ads_by_criteria(search_dict, limit=limit)
     except Exception as e:
         logger.error(f"Error searching ads: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") from e
+        raise HTTPException(
+            status_code=500, detail="Internal server error"
+        ) from e
 
 
 @app.post("/ads/search/text", response_model=list[AdResponse])
@@ -240,7 +248,9 @@ async def search_ads_by_text(
         )
     except Exception as e:
         logger.error(f"Error searching ads by text: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") from e
+        raise HTTPException(
+            status_code=500, detail="Internal server error"
+        ) from e
 
 
 @app.get("/stats", response_model=StatsResponse)
@@ -259,7 +269,9 @@ async def get_database_stats():
         )
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") from e
+        raise HTTPException(
+            status_code=500, detail="Internal server error"
+        ) from e
 
 
 # CORS middleware configuration
@@ -275,4 +287,6 @@ app.add_middleware(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+    uvicorn.run(
+        "main:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
+    )

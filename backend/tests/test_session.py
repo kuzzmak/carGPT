@@ -251,7 +251,9 @@ class TestPostgreSQLSession:
         assert items == []
 
     @pytest.mark.asyncio
-    async def test_pop_item(self, session: PostgreSQLSession, sample_items: list[dict]):
+    async def test_pop_item(
+        self, session: PostgreSQLSession, sample_items: list[dict]
+    ):
         """Test popping the most recent item."""
         await session.add_items(sample_items)
 
@@ -412,11 +414,17 @@ class TestPostgreSQLSession:
     @pytest.mark.asyncio
     async def test_concurrent_operations(self, session: PostgreSQLSession):
         """Test concurrent operations on the same session."""
-        items1 = [{"type": "user", "content": f"Message {i}"} for i in range(5)]
-        items2 = [{"type": "assistant", "content": f"Response {i}"} for i in range(5)]
+        items1 = [
+            {"type": "user", "content": f"Message {i}"} for i in range(5)
+        ]
+        items2 = [
+            {"type": "assistant", "content": f"Response {i}"} for i in range(5)
+        ]
 
         # Run concurrent add operations
-        await asyncio.gather(session.add_items(items1), session.add_items(items2))
+        await asyncio.gather(
+            session.add_items(items1), session.add_items(items2)
+        )
 
         # Verify all items were added
         all_items = await session.get_items()
@@ -476,7 +484,9 @@ class TestPostgreSQLSession:
         )
 
         # This should raise a connection error
-        with pytest.raises((psycopg2.OperationalError, psycopg2.DatabaseError)):
+        with pytest.raises(
+            (psycopg2.OperationalError, psycopg2.DatabaseError)
+        ):
             await invalid_session.add_items([{"test": "data"}])
 
         invalid_session.close()
@@ -504,7 +514,9 @@ class TestPostgreSQLSession:
         # Add items with small delays to ensure different timestamps
         for i in range(ORDERING_TEST_COUNT):
             await session.add_items([{"order": i, "content": f"Message {i}"}])
-            await asyncio.sleep(0.01)  # Small delay to ensure different timestamps
+            await asyncio.sleep(
+                0.01
+            )  # Small delay to ensure different timestamps
 
         # Retrieve all items
         items = await session.get_items()

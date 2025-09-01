@@ -51,7 +51,9 @@ class AdColumns(StrEnum):
     @classmethod
     def get_insertable_columns(cls):
         """Get list of columns that can be inserted (excluding system columns)."""
-        return [col.value for col in cls if col not in [cls.ID, cls.INSERTION_TIME]]
+        return [
+            col.value for col in cls if col not in [cls.ID, cls.INSERTION_TIME]
+        ]
 
     @classmethod
     def get_all_columns(cls):

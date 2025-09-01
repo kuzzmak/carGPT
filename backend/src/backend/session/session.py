@@ -122,7 +122,9 @@ class PostgreSQLSession(SessionABC):
             if conn:
                 pool.putconn(conn)
 
-    async def get_items(self, limit: int | None = None) -> list[TResponseInputItem]:
+    async def get_items(
+        self, limit: int | None = None
+    ) -> list[TResponseInputItem]:
         """Retrieve the conversation history for this session.
 
         Args:

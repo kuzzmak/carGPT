@@ -52,7 +52,9 @@ class TorFirefoxScraper:
         )
         self.tor_process = None
         self.driver = None
-        self.tor_proxy_port = 9150  # Tor Browser uses 9150, standalone Tor uses 9050
+        self.tor_proxy_port = (
+            9150  # Tor Browser uses 9150, standalone Tor uses 9050
+        )
         self.tor_control_port = 9151
 
     def start_tor(self):
@@ -120,7 +122,9 @@ class TorFirefoxScraper:
                     f"Waiting for Tor Browser... ({elapsed_time}/{max_wait_time} seconds)"
                 )
 
-            logger.error("Tor Browser failed to start within the timeout period")
+            logger.error(
+                "Tor Browser failed to start within the timeout period"
+            )
             return False
 
         except Exception as e:
@@ -133,7 +137,9 @@ class TorFirefoxScraper:
             logger.info("Trying to start standalone Tor...")
 
             # Check if tor is installed system-wide
-            result = subprocess.run(["which", "tor"], capture_output=True, text=True)
+            result = subprocess.run(
+                ["which", "tor"], capture_output=True, text=True
+            )
             if result.returncode != 0:
                 logger.warning("Standalone Tor not found in PATH")
                 return False
@@ -241,7 +247,9 @@ DataDirectory /tmp/tor_data_selenium
                 "network.proxy.socks_port", self.tor_proxy_port
             )
             firefox_options.set_preference("network.proxy.socks_version", 5)
-            firefox_options.set_preference("network.proxy.socks_remote_dns", True)
+            firefox_options.set_preference(
+                "network.proxy.socks_remote_dns", True
+            )
 
             # Additional privacy settings and anti-detection measures
             firefox_options.set_preference("dom.webdriver.enabled", False)
@@ -252,7 +260,9 @@ DataDirectory /tmp/tor_data_selenium
             )
 
             # More anti-detection settings
-            firefox_options.set_preference("dom.webnotifications.enabled", False)
+            firefox_options.set_preference(
+                "dom.webnotifications.enabled", False
+            )
             firefox_options.set_preference("media.navigator.enabled", False)
             firefox_options.set_preference("webgl.disabled", True)
             firefox_options.set_preference("dom.battery.enabled", False)
@@ -280,7 +290,9 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(f"Error setting up Firefox with Tor: {e}")
             return False
 
-    def scrape_njuskalo_cars(self, url="https://www.njuskalo.hr/auti", num_pages=1):
+    def scrape_njuskalo_cars(
+        self, url="https://www.njuskalo.hr/auti", num_pages=1
+    ):
         """Scrape the Njuškalo cars page(s)"""
         if not self.driver:
             logger.error("WebDriver not initialized")
@@ -300,7 +312,9 @@ DataDirectory /tmp/tor_data_selenium
 
                 # Wait for car listings to load
                 try:
-                    wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+                    wait.until(
+                        EC.presence_of_element_located((By.TAG_NAME, "body"))
+                    )
                     logger.info(f"Page {page_num} loaded successfully")
                 except TimeoutException:
                     logger.warning(
@@ -329,7 +343,9 @@ DataDirectory /tmp/tor_data_selenium
                     logger.warning(f"No ad links found on page {page_num}")
                     continue
 
-                logger.info(f"Found {len(ad_links)} ad links on page {page_num}")
+                logger.info(
+                    f"Found {len(ad_links)} ad links on page {page_num}"
+                )
 
                 for ad_link in ad_links:
                     ads_file.write(ad_link + "\n")
@@ -339,7 +355,9 @@ DataDirectory /tmp/tor_data_selenium
                     try:
                         self.handle_link(ad_link)
                         delay = random.randint(1, 10)
-                        logger.info(f"Waiting {delay:.2f} seconds before next link...")
+                        logger.info(
+                            f"Waiting {delay:.2f} seconds before next link..."
+                        )
                         time.sleep(delay)
                     except Exception as e:
                         logger.error(f"Error handling link {ad_link}: {e}")
@@ -348,7 +366,9 @@ DataDirectory /tmp/tor_data_selenium
                 # Add delay between pages
                 if page_num < num_pages:
                     delay = random.uniform(2, 5)
-                    logger.info(f"Waiting {delay:.2f} seconds before next page...")
+                    logger.info(
+                        f"Waiting {delay:.2f} seconds before next page..."
+                    )
                     time.sleep(delay)
 
             except Exception as e:
@@ -385,7 +405,9 @@ DataDirectory /tmp/tor_data_selenium
 
             ad_id = self.database.insert_ad(article_info)
             if ad_id:
-                logger.info(f"Successfully saved article to database with ID: {ad_id}")
+                logger.info(
+                    f"Successfully saved article to database with ID: {ad_id}"
+                )
             else:
                 logger.error("Failed to save article to database")
         except Exception as e:
@@ -413,7 +435,10 @@ def get_ad_links(page_ads: list[WebElement]) -> list[str]:
     for ad in page_ads:
         try:
             ad_class = ad.get_attribute("class")
-            if ad_class is not None and "EntityList-bannerContainer" in ad_class:
+            if (
+                ad_class is not None
+                and "EntityList-bannerContainer" in ad_class
+            ):
                 logger.debug("Skipping banner container")
                 continue
             article = ad.find_element(By.TAG_NAME, "article")
@@ -430,7 +455,9 @@ def get_ads(driver: WebDriver):
     """Get ads from the current page"""
     try:
         ads = (
-            driver.find_element(By.CSS_SELECTOR, ".EntityList--ListItemRegularAd")
+            driver.find_element(
+                By.CSS_SELECTOR, ".EntityList--ListItemRegularAd"
+            )
             .find_element(By.CLASS_NAME, "EntityList-items")
             .find_elements(By.CLASS_NAME, "EntityList-item")
         )
@@ -476,9 +503,13 @@ def parse_date_string(date_str: str, base_time: datetime | None = None):
     return round_up_to_next_hour(result)
 
 
-def get_ad_columns(driver: WebDriver) -> tuple[list[WebElement], list[WebElement]]:
+def get_ad_columns(
+    driver: WebDriver,
+) -> tuple[list[WebElement], list[WebElement]]:
     """Get the left and right columns of ad details"""
-    ad_info = driver.find_element(By.CLASS_NAME, "ClassifiedDetailBasicDetails-list")
+    ad_info = driver.find_element(
+        By.CLASS_NAME, "ClassifiedDetailBasicDetails-list"
+    )
     ad_left_column = ad_info.find_elements(
         By.CLASS_NAME, "ClassifiedDetailBasicDetails-listTerm"
     )
@@ -532,7 +563,9 @@ def transform_data(data):
         "power": lambda x: int(x.split()[0]),
         "service_book": lambda x: boolean_transform(x),
         "fuel_consumption": lambda x: float(x.split()[0].replace(",", ".")),
-        "average_co2_emission": lambda x: float(x.split()[0].replace(",", ".")),
+        "average_co2_emission": lambda x: float(
+            x.split()[0].replace(",", ".")
+        ),
         "owner": lambda x: int(x.split()[0]) if x.split()[0].isdigit() else x,
         "displacement": lambda x: int(x.replace(".", "").replace(" cm3", "")),
         "in_traffic_since": lambda x: year_transform(x),
@@ -569,7 +602,9 @@ def extract_article_info(driver: WebDriver) -> dict[str, Any]:
                 By.CLASS_NAME, "ClassifiedDetailSystemDetails-listData"
             )
             date_time_format = "%d.%m.%Y. u %H:%M"
-            date_time_obj = datetime.strptime(published_elem.text, date_time_format)
+            date_time_obj = datetime.strptime(
+                published_elem.text, date_time_format
+            )
             ad_details["date_created"] = date_time_obj.isoformat()
         except Exception as e:
             logger.debug(f"Error extracting publication date: {e}")
@@ -593,10 +628,13 @@ def extract_article_info(driver: WebDriver) -> dict[str, Any]:
                 ad_date_created = ad_dates[0].text.strip()
                 ad_duration = ad_dates[1].text.strip()
                 ad_duration_parsed = parse_date_string(
-                    ad_duration, datetime.strptime(ad_date_created, "%d.%m.%Y. u %H:%M")
+                    ad_duration,
+                    datetime.strptime(ad_date_created, "%d.%m.%Y. u %H:%M"),
                 )
                 ad_details["ad_duration"] = (
-                    ad_duration_parsed.isoformat() if ad_duration_parsed else ""
+                    ad_duration_parsed.isoformat()
+                    if ad_duration_parsed
+                    else ""
                 )
         except Exception as e:
             logger.debug(f"Error extracting ad duration: {e}")
@@ -643,19 +681,27 @@ def main():
                 print("DATABASE TROUBLESHOOTING:")
                 print("1. Start PostgreSQL database using Docker:")
                 print("   cd docker/database && make start")
-                print("   OR: cd docker/database && make start-all (includes pgAdmin)")
+                print(
+                    "   OR: cd docker/database && make start-all (includes pgAdmin)"
+                )
                 print("")
                 print("2. Check if database is running:")
                 print("   cd docker/database && make status")
                 print("   cd docker/database && make test-connection")
                 print("")
                 print("3. Environment variables (current values):")
-                print(f"   - CARGPT_DB_NAME: {os.getenv('CARGPT_DB_NAME', 'ads_db')}")
-                print(f"   - CARGPT_DB_USER: {os.getenv('CARGPT_DB_USER', 'adsuser')}")
+                print(
+                    f"   - CARGPT_DB_NAME: {os.getenv('CARGPT_DB_NAME', 'ads_db')}"
+                )
+                print(
+                    f"   - CARGPT_DB_USER: {os.getenv('CARGPT_DB_USER', 'adsuser')}"
+                )
                 print(
                     f"   - CARGPT_DB_HOST: {os.getenv('CARGPT_DB_HOST', 'localhost')}"
                 )
-                print(f"   - CARGPT_DB_PORT: {os.getenv('CARGPT_DB_PORT', '5432')}")
+                print(
+                    f"   - CARGPT_DB_PORT: {os.getenv('CARGPT_DB_PORT', '5432')}"
+                )
                 print("")
                 print("4. Database management commands:")
                 print(
@@ -683,12 +729,18 @@ def main():
             print("")
             print("🐳 Docker Commands:")
             print("   cd docker/database && make help     # Show all commands")
-            print("   cd docker/database && make start-all # Start with pgAdmin UI")
-            print("   cd docker/database && make connect   # Connect to database CLI")
+            print(
+                "   cd docker/database && make start-all # Start with pgAdmin UI"
+            )
+            print(
+                "   cd docker/database && make connect   # Connect to database CLI"
+            )
             print("")
             print("🧪 Test Database Connection:")
             print("   python carGPT/database/example_usage.py")
-            print("   # This will test the connection and show sample operations")
+            print(
+                "   # This will test the connection and show sample operations"
+            )
             print("")
             print("📊 Current Environment Variables:")
             print(
@@ -729,9 +781,13 @@ def main():
             logger.error("Failed to setup Firefox with Tor.")
             print("\n" + "=" * 50)
             print("TROUBLESHOOTING:")
-            print("1. Make sure Firefox is installed: sudo apt install firefox")
+            print(
+                "1. Make sure Firefox is installed: sudo apt install firefox"
+            )
             print("2. Make sure geckodriver is in PATH")
-            print("3. Install geckodriver: sudo apt install firefox-geckodriver")
+            print(
+                "3. Install geckodriver: sudo apt install firefox-geckodriver"
+            )
             print("=" * 50)
             return
 
@@ -754,9 +810,13 @@ def main():
         if db is not None:
             try:
                 total_ads = db.get_ads_count()
-                print(f"📊 Partial results - Total ads in database: {total_ads}")
+                print(
+                    f"📊 Partial results - Total ads in database: {total_ads}"
+                )
                 if total_ads > 0:
-                    print("💡 View saved data: cd docker/database && make list-ads")
+                    print(
+                        "💡 View saved data: cd docker/database && make list-ads"
+                    )
             except Exception:
                 pass
     except Exception as e:
