@@ -85,16 +85,19 @@ class PostgreSQLSession(SessionABC):
             conn = pool.getconn()
             with conn.cursor() as cur:
                 # Create sessions table
-                cur.execute(f"""
+                cur.execute(
+                    f"""
                     CREATE TABLE IF NOT EXISTS {self.sessions_table} (
                         session_id TEXT PRIMARY KEY,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
+                """
+                )
 
                 # Create messages table
-                cur.execute(f"""
+                cur.execute(
+                    f"""
                     CREATE TABLE IF NOT EXISTS {self.messages_table} (
                         id SERIAL PRIMARY KEY,
                         session_id TEXT NOT NULL,
@@ -103,22 +106,23 @@ class PostgreSQLSession(SessionABC):
                         FOREIGN KEY (session_id) REFERENCES {self.sessions_table} (session_id)
                             ON DELETE CASCADE
                     )
-                """)
+                """
+                )
 
                 # Create index for performance
-                cur.execute(f"""
+                cur.execute(
+                    f"""
                     CREATE INDEX IF NOT EXISTS idx_{self.messages_table}_session_id
                     ON {self.messages_table} (session_id, created_at)
-                """)
+                """
+                )
 
                 conn.commit()
         finally:
             if conn:
                 pool.putconn(conn)
 
-    async def get_items(
-        self, limit: int | None = None
-    ) -> list[TResponseInputItem]:
+    async def get_items(self, limit: int | None = None) -> list[TResponseInputItem]:
         """Retrieve the conversation history for this session.
 
         Args:

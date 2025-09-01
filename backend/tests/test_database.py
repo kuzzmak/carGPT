@@ -147,12 +147,14 @@ class TestDatabase:
 
         # Verify table exists
         with database.get_connection() as conn, conn.cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_name = 'ads'
                 );
-            """)
+            """
+            )
             exists = cursor.fetchone()[0]
             assert exists is True
 

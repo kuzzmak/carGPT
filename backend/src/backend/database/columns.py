@@ -3,11 +3,11 @@ from enum import StrEnum
 
 class AdColumns(StrEnum):
     """String enum for available ad columns in the database."""
-    
+
     # System columns (not directly insertable)
     ID = "id"
     INSERTION_TIME = "insertion_time"
-    
+
     # User data columns
     DATE_CREATED = "date_created"
     PRICE = "price"
@@ -47,12 +47,12 @@ class AdColumns(StrEnum):
     SUSPENSION = "suspension"
     TIRE_SIZE = "tire_size"
     INTERNAL_CODE = "internal_code"
-    
+
     @classmethod
     def get_insertable_columns(cls):
         """Get list of columns that can be inserted (excluding system columns)."""
         return [col.value for col in cls if col not in [cls.ID, cls.INSERTION_TIME]]
-    
+
     @classmethod
     def get_all_columns(cls):
         """Get list of all available columns."""
