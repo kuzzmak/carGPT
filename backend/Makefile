@@ -140,15 +140,10 @@ install: ## Install dependencies using uv
 sync: ## Sync dependencies using uv (alias for install)
 	uv sync
 
-# Format code with black
+# Format code with ruff
 .PHONY: format
-format: ## Format code with black
-	uv run black .
-
-# Lint code with flake8
-.PHONY: lint
-lint: ## Lint code with flake8
-	uv run flake8 .
+format:
+	uv run ruff format .
 
 # Run tests with pytest
 .PHONY: test-unit
