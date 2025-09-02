@@ -415,6 +415,83 @@ class Database:
             logger.error(f"Error searching ads: {e}")
             return []
 
+    def search_ads_with_range(
+        self,
+        criteria: dict[str, Any] | None = None,
+        range_criteria: dict[str, dict[str, Any]] | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Search ads with support for range filtering on numerical columns.
+
+        Args:
+            criteria: Dictionary of exact match criteria
+            range_criteria: Dictionary of range criteria in format:
+                {
+                    'column_name': {'min': min_value, 'max': max_value}
+                }
+                Either 'min' or 'max' can be omitted for one-sided ranges.
+            limit: Maximum number of results to return
+
+        Returns:
+            List of dictionaries containing matching ad data
+        """
+        # Supported numerical columns for range searches
+        numerical_columns = set(AdColumns.get_numerical_columns())
+
+        conditions = []
+        values = []
+
+        # Add exact match criteria
+        if criteria:
+            for key, value in criteria.items():
+                if value is not None:
+                    conditions.append(f"{key} = %s")
+                    values.append(value)
+
+        # Add range criteria
+        if range_criteria:
+            for column, range_params in range_criteria.items():
+                if column not in numerical_columns:
+                    logger.warning(
+                        f"Column '{column}' does not support range searches. Skipping."
+                    )
+                    continue
+
+                min_value = range_params.get("min")
+                max_value = range_params.get("max")
+
+                if min_value is not None:
+                    conditions.append(f"{column} >= %s")
+                    values.append(min_value)
+
+                if max_value is not None:
+                    conditions.append(f"{column} <= %s")
+                    values.append(max_value)
+
+        # Build final query
+        if conditions:
+            where_clause = " AND ".join(conditions)
+            query = f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} ORDER BY insertion_time DESC LIMIT %s;"
+        else:
+            query = f"SELECT * FROM {ADS_TABLE_NAME} ORDER BY insertion_time DESC LIMIT %s;"
+
+        values.append(limit)
+
+        try:
+            with self.get_connection() as conn, conn.cursor() as cursor:
+                cursor.execute(query, values)
+                results = cursor.fetchall()
+
+                if results:
+                    columns = [desc[0] for desc in cursor.description]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
+                return []
+        except psycopg2.Error as e:
+            logger.error(f"Error searching ads with range: {e}")
+            return []
+
     @property
     def instance(self) -> "Database":
         if self._instance is None:

@@ -59,3 +59,19 @@ class AdColumns(StrEnum):
     def get_all_columns(cls):
         """Get list of all available columns."""
         return [col.value for col in cls]
+
+    @classmethod
+    def get_numerical_columns(cls):
+        """Get list of columns that support range searches."""
+        return [
+            cls.PRICE,
+            cls.MANUFACTURE_YEAR,
+            cls.MODEL_YEAR,
+            cls.MILEAGE,
+            cls.POWER,
+            cls.DISPLACEMENT,
+            cls.IN_TRAFFIC_SINCE,
+            cls.FIRST_REGISTRATION_IN_CROATIA,
+            cls.NUMBER_OF_DOORS,
+            cls.NUMBER_OF_SEATS,
+        ]

@@ -482,6 +482,337 @@ class TestDatabase:
         results = database.search_ads_by_text("NonExistentBrand")
         assert len(results) == 0
 
+    def test_search_ads_with_range_price_only(self, database):
+        """Test range search with price range only."""
+        # Insert test data with different prices
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X5",
+                AdColumns.PRICE: 15000.00,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Mercedes",
+                AdColumns.MODEL: "C-Class",
+                AdColumns.PRICE: 25000.00,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Audi",
+                AdColumns.MODEL: "A4",
+                AdColumns.PRICE: 35000.00,
+            },
+        ]
+
+        ad_ids = []
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+            ad_ids.append(ad_id)
+
+        # Test price range searches
+        # Find ads between 20k and 30k
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.PRICE: {"min": 20000, "max": 30000}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Mercedes"
+        assert results[0]["price"] == 25000.00
+
+        # Find ads above 30k
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.PRICE: {"min": 30000}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Audi"
+
+        # Find ads below 20k
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.PRICE: {"max": 20000}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "BMW"
+
+    def test_search_ads_with_range_multiple_criteria(self, database):
+        """Test range search with multiple numerical criteria."""
+        # Insert test data with different numerical values
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Honda",
+                AdColumns.MODEL: "Civic",
+                AdColumns.PRICE: 15000.00,
+                AdColumns.MILEAGE: 50000,
+                AdColumns.MANUFACTURE_YEAR: 2015,
+                AdColumns.POWER: 120,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Toyota",
+                AdColumns.MODEL: "Camry",
+                AdColumns.PRICE: 20000.00,
+                AdColumns.MILEAGE: 75000,
+                AdColumns.MANUFACTURE_YEAR: 2018,
+                AdColumns.POWER: 150,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Ford",
+                AdColumns.MODEL: "Focus",
+                AdColumns.PRICE: 25000.00,
+                AdColumns.MILEAGE: 30000,
+                AdColumns.MANUFACTURE_YEAR: 2020,
+                AdColumns.POWER: 180,
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test multiple range criteria
+        results = database.search_ads_with_range(
+            range_criteria={
+                AdColumns.PRICE: {"min": 18000, "max": 23000},
+                AdColumns.MILEAGE: {"max": 80000},
+                AdColumns.MANUFACTURE_YEAR: {"min": 2017},
+            }
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Toyota"
+
+        # Test with power range
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.POWER: {"min": 140, "max": 160}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Toyota"
+
+    def test_search_ads_with_range_and_exact_criteria(self, database):
+        """Test range search combined with exact match criteria."""
+        # Insert test data
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Volkswagen",
+                AdColumns.MODEL: "Golf",
+                AdColumns.LOCATION: "Zagreb",
+                AdColumns.PRICE: 18000.00,
+                AdColumns.MILEAGE: 60000,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Volkswagen",
+                AdColumns.MODEL: "Passat",
+                AdColumns.LOCATION: "Split",
+                AdColumns.PRICE: 22000.00,
+                AdColumns.MILEAGE: 45000,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Skoda",
+                AdColumns.MODEL: "Octavia",
+                AdColumns.LOCATION: "Zagreb",
+                AdColumns.PRICE: 16000.00,
+                AdColumns.MILEAGE: 70000,
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test exact criteria + range criteria
+        results = database.search_ads_with_range(
+            criteria={AdColumns.MAKE: "Volkswagen"},
+            range_criteria={AdColumns.PRICE: {"min": 20000}},
+        )
+        assert len(results) == 1
+        assert results[0]["model"] == "Passat"
+
+        # Test location + mileage range
+        results = database.search_ads_with_range(
+            criteria={AdColumns.LOCATION: "Zagreb"},
+            range_criteria={AdColumns.MILEAGE: {"max": 65000}},
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Volkswagen"
+        assert results[0]["model"] == "Golf"
+
+    def test_search_ads_with_range_no_results(self, database):
+        """Test range search with no matching results."""
+        # Insert test data
+        test_ad = {
+            AdColumns.DATE_CREATED: datetime.now(UTC),
+            AdColumns.MAKE: "Test",
+            AdColumns.MODEL: "Car",
+            AdColumns.PRICE: 15000.00,
+            AdColumns.MILEAGE: 50000,
+        }
+
+        ad_id = database.insert_ad(test_ad)
+        assert ad_id is not None
+
+        # Test range that should return no results
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.PRICE: {"min": 50000}}
+        )
+        assert len(results) == 0
+
+        # Test impossible range
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.MILEAGE: {"min": 100000, "max": 90000}}
+        )
+        assert len(results) == 0
+
+    def test_search_ads_with_range_empty_criteria(self, database):
+        """Test range search with empty criteria (should return all ads)."""
+        # Insert test data
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Car1",
+                AdColumns.MODEL: "Model1",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Car2",
+                AdColumns.MODEL: "Model2",
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test with empty criteria
+        results = database.search_ads_with_range(limit=10)
+        assert len(results) == 2
+
+        # Test with None criteria
+        results = database.search_ads_with_range(
+            criteria=None, range_criteria=None
+        )
+        assert len(results) == 2
+
+    def test_search_ads_with_range_limit(self, database):
+        """Test range search with limit parameter."""
+        # Insert multiple test ads
+        for i in range(5):
+            test_ad = {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: f"Car{i}",
+                AdColumns.MODEL: f"Model{i}",
+                AdColumns.PRICE: 10000.00 + (i * 1000),
+            }
+            ad_id = database.insert_ad(test_ad)
+            assert ad_id is not None
+
+        # Test with limit
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.PRICE: {"min": 10000}}, limit=3
+        )
+        assert len(results) == 3
+
+    def test_search_ads_with_range_invalid_column(self, database):
+        """Test range search with invalid numerical column."""
+        # Insert test data
+        test_ad = {
+            AdColumns.DATE_CREATED: datetime.now(UTC),
+            AdColumns.MAKE: "Test",
+            AdColumns.MODEL: "Car",
+        }
+
+        ad_id = database.insert_ad(test_ad)
+        assert ad_id is not None
+
+        # Test with non-numerical column (should be ignored with warning)
+        results = database.search_ads_with_range(
+            range_criteria={"make": {"min": "A", "max": "Z"}}
+        )
+        # Should return the ad since invalid range criteria is ignored
+        assert len(results) == 1
+
+    def test_search_ads_with_range_year_ranges(self, database):
+        """Test range search specifically for year-related columns."""
+        # Insert test data with different years
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Old",
+                AdColumns.MODEL: "Car",
+                AdColumns.MANUFACTURE_YEAR: 2010,
+                AdColumns.MODEL_YEAR: 2010,
+                AdColumns.IN_TRAFFIC_SINCE: 2011,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "New",
+                AdColumns.MODEL: "Car",
+                AdColumns.MANUFACTURE_YEAR: 2020,
+                AdColumns.MODEL_YEAR: 2020,
+                AdColumns.IN_TRAFFIC_SINCE: 2020,
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test manufacture year range
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.MANUFACTURE_YEAR: {"min": 2015}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "New"
+
+        # Test model year range
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.MODEL_YEAR: {"max": 2015}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Old"
+
+    def test_search_ads_with_range_doors_and_seats(self, database):
+        """Test range search for doors and seats columns."""
+        # Insert test data with different door/seat configurations
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Small",
+                AdColumns.MODEL: "Car",
+                AdColumns.NUMBER_OF_DOORS: 3,
+                AdColumns.NUMBER_OF_SEATS: 4,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Family",
+                AdColumns.MODEL: "Car",
+                AdColumns.NUMBER_OF_DOORS: 5,
+                AdColumns.NUMBER_OF_SEATS: 7,
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test doors range
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.NUMBER_OF_DOORS: {"min": 5}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Family"
+
+        # Test seats range
+        results = database.search_ads_with_range(
+            range_criteria={AdColumns.NUMBER_OF_SEATS: {"max": 5}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Small"
+
 
 class TestDatabaseErrorHandling:
     """Test error handling in Database class."""
@@ -522,6 +853,10 @@ class TestDatabaseErrorHandling:
         assert db.delete_ad(1) is False
         assert db.get_ads_count() == 0
         assert db.search_ads_by_text("test") == []
+        assert (
+            db.search_ads_with_range(range_criteria={"price": {"min": 10000}})
+            == []
+        )
 
         # Restore connection params
         db._connection_params = original_params
