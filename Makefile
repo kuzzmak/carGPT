@@ -39,7 +39,7 @@ up-db: ## Start only the database service
 	@echo "📊 PostgreSQL: localhost:5432"
 
 down: ## Stop all services
-	$(COMPOSE_CMD) down
+	$(COMPOSE_CMD) down --remove-orphans
 	@echo "🛑 Services stopped"
 
 down-volumes: ## Stop all services and remove volumes (⚠️  deletes data!)

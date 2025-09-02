@@ -1,17 +1,19 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15
     container_name: cargpt-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${CARGPT_DB_NAME:-ads_db}
       POSTGRES_USER: ${CARGPT_DB_USER:-adsuser}
       POSTGRES_PASSWORD: ${CARGPT_DB_PASSWORD:-pass}
-      POSTGRES_INITDB_ARGS: "--auth-local=trust"
+      POSTGRES_INITDB_ARGS: "--auth-local=trust --locale=en_US.UTF-8"
+      LC_ALL: en_US.UTF-8
+      LANG: en_US.UTF-8
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./src/backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./backend/src/backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "${CARGPT_DB_PORT:-5432}:5432"
     networks:
@@ -26,7 +28,7 @@ services:
   # FastAPI Backend
   backend:
     build: 
-      context: src/backend
+      context: backend
       dockerfile: Dockerfile
     container_name: cargpt-backend
     restart: unless-stopped
@@ -37,18 +39,8 @@ services:
       CARGPT_DB_PASSWORD: ${CARGPT_DB_PASSWORD:-pass}
       CARGPT_DB_HOST: postgres
       CARGPT_DB_PORT: "5432"
-      
-      # Development settings
-      PYTHONPATH: /app
-      UVICORN_RELOAD: ${UVICORN_RELOAD:-true}
     ports:
       - "8000:8000"
-    volumes:
-      # Mount source code for development (hot reload)
-      - .:/app
-      # Exclude virtual environment and cache directories
-      - /app/.venv
-      - /app/__pycache__
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,24 +54,24 @@ services:
       start_period: 30s
 
   # PgAdmin (Optional - for database management)
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: cargpt-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@cargpt.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin123}
-      PGADMIN_LISTEN_PORT: 80
-    ports:
-      - "5050:80"
-    volumes:
-      - pgladmin_data:/var/lib/pgladmin
-    depends_on:
-      - postgres
-    networks:
-      - cargpt-network
-    profiles:
-      - tools # Only start with --profile tools
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: cargpt-pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@cargpt.com}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin123}
+  #     PGADMIN_LISTEN_PORT: 80
+  #   ports:
+  #     - "5050:80"
+  #   volumes:
+  #     - pgladmin_data:/var/lib/pgladmin
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - cargpt-network
+  #   profiles:
+  #     - tools # Only start with --profile tools
 
 volumes:
   postgres_data:

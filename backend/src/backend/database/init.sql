@@ -11,39 +11,39 @@
 \set db_user `echo "${CARGPT_DB_USER:-adsuser}"`
 \set db_password `echo "${CARGPT_DB_PASSWORD:-pass}"`
 
--- Create user if not exists
-CREATE USER :db_user WITH LOGIN PASSWORD :'db_password';
-
--- Create database if not exists
-CREATE DATABASE :db_name OWNER :db_user;
+-- Note: User and database are automatically created by PostgreSQL Docker container
+-- using POSTGRES_USER, POSTGRES_DB, and POSTGRES_PASSWORD environment variables
 
 -- Connect to the new database
 \connect :db_name
+
+-- Enable the citext extension for case-insensitive text operations
+CREATE EXTENSION IF NOT EXISTS citext;
 
 -- Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE :db_name TO :db_user;
 GRANT ALL ON SCHEMA public TO :db_user;
 
--- Create the ads table
+-- Create the ads table with citext for case-insensitive text columns
 CREATE TABLE IF NOT EXISTS ads (
     id SERIAL PRIMARY KEY,
     insertion_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     date_created TIMESTAMP NOT NULL,
     price NUMERIC(10, 2),
-    location VARCHAR(100),
-    make VARCHAR(30),
-    model VARCHAR(50),
-    type VARCHAR(100),
-    chassis_number VARCHAR(17),
+    location CITEXT,
+    make CITEXT,
+    model CITEXT,
+    type CITEXT,
+    chassis_number CITEXT,
     manufacture_year INT,
     model_year INT,
     mileage INT,
-    engine VARCHAR(20),
+    engine CITEXT,
     power INT,
     displacement INT,
-    transmission VARCHAR(30),
-    condition VARCHAR(20),
-    owner VARCHAR(20),
+    transmission CITEXT,
+    condition CITEXT,
+    owner CITEXT,
     service_book BOOLEAN,
     garaged BOOLEAN,
     in_traffic_since INT,
@@ -58,13 +58,14 @@ CREATE TABLE IF NOT EXISTS ads (
     gas BOOLEAN,
     auto_warranty VARCHAR(20),
     number_of_doors INT,
-    chassis_type VARCHAR(20),
+    chassis_type CITEXT,
     number_of_seats INT,
-    drive_type VARCHAR(20),
-    color VARCHAR(20),
+    drive_type CITEXT,
+    color CITEXT,
     metalic_color BOOLEAN,
-    suspension VARCHAR(20),
-    tire_size VARCHAR(20)
+    suspension CITEXT,
+    tire_size VARCHAR(20),
+    internal_code VARCHAR(50)
 );
 
 -- Grant table permissions to the application user
@@ -80,8 +81,11 @@ CREATE INDEX IF NOT EXISTS idx_ads_manufacture_year ON ads(manufacture_year);
 CREATE INDEX IF NOT EXISTS idx_ads_insertion_time ON ads(insertion_time);
 CREATE INDEX IF NOT EXISTS idx_ads_make_model ON ads(make, model);
 
-COMMENT ON TABLE ads IS 'Table for storing car advertisement data';
+COMMENT ON TABLE ads IS 'Table for storing car advertisement data with case-insensitive text fields';
 COMMENT ON COLUMN ads.insertion_time IS 'Timestamp when the ad was inserted into the database';
 COMMENT ON COLUMN ads.date_created IS 'Original creation date of the advertisement';
-COMMENT ON COLUMN ads.chassis_number IS 'Vehicle Identification Number (VIN)';
+COMMENT ON COLUMN ads.chassis_number IS 'Vehicle Identification Number (VIN) - case insensitive';
 COMMENT ON COLUMN ads.metalic_color IS 'Boolean indicating if the car has metallic paint';
+COMMENT ON COLUMN ads.make IS 'Car manufacturer - case insensitive using CITEXT';
+COMMENT ON COLUMN ads.model IS 'Car model - case insensitive using CITEXT';
+COMMENT ON COLUMN ads.location IS 'Location of the car - case insensitive using CITEXT';

@@ -19,13 +19,16 @@ RUN pip install uv
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock ./
 
-# Install dependencies using uv
-RUN uv sync --frozen
+# TODO: fix
+RUN uv sync --frozen --no-install-project
 
 # Copy the application code
-COPY . .
+COPY src/ .
+
+# TODO: fix
+RUN uv pip install -e .
 
 # Create a non-root user for security
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
@@ -39,4 +42,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

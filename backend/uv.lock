@@ -40,6 +40,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "mcp" },
     { name = "openai-agents" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
@@ -62,6 +63,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.104.1" },
+    { name = "mcp", specifier = ">=1.0.0" },
     { name = "openai-agents", specifier = ">=0.2.8" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
     { name = "pydantic", specifier = ">=2.5.0" },
