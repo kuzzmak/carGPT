@@ -1,0 +1,84 @@
+# Base Logging Configuration for CarGPT Backend
+# This file contains shared formatters, handlers and general logging setup
+# that can be extended by specific logging configurations.
+
+version: 1
+disable_existing_loggers: false
+
+# Shared formatters that can be used across different components
+formatters:
+  detailed:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  
+  simple:
+    format: "%(levelname)s - %(name)s - %(message)s"
+  
+  json:
+    format: '{"timestamp": "%(asctime)s", "logger": "%(name)s", "level": "%(levelname)s", "file": "%(filename)s", "line": %(lineno)d, "message": "%(message)s"}'
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  
+  console_colored:
+    format: "%(asctime)s - %(name)-20s - %(levelname)-8s - %(message)s"
+    datefmt: "%H:%M:%S"
+
+# Base handlers that can be referenced by specific configurations
+handlers:
+  # Console output - can be overridden by specific configs
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: console_colored
+    stream: ext://sys.stdout
+  
+  # Main application log file
+  file:
+    class: logging.FileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/log.log
+    encoding: utf-8
+    mode: 'a'
+  
+  # Rotating log file (prevents files from getting too large)
+  rotating_file:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/log_rotating.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf-8
+  
+  # Error-only log file
+  error_file:
+    class: logging.FileHandler
+    level: ERROR
+    formatter: detailed
+    filename: logs/errors.log
+    encoding: utf-8
+    mode: 'a'
+
+# Base loggers configuration
+loggers:
+  root:
+    level: DEBUG
+    handlers: [error_file]
+
+# Custom configuration section with base settings
+custom:
+  # Default enabled loggers
+  enabled_loggers: [console, file]
+  
+  # Common packages to ignore INFO/DEBUG messages from
+  ignored_packages:
+    - httpx
+  
+  # Base package level settings
+  package_levels:
+    psycopg2: INFO
+  
+  # Log settings
+  log_directory: logs
+  max_file_size_mb: 10
+  backup_count: 5

@@ -1,15 +1,4 @@
-"""
-Logging configuration and setup for the backend application.
-
-This module provides a comprehensive logging infrastructure with:
-- Multiple output handlers (console, file, rotating file)
-- Configurable log levels per package/module
-- Package-based filtering (ignore lists)
-- YAML-based configuration
-- Structured logging format
-- Environment-specific configurations
-"""
-
+from copy import deepcopy
 import logging
 import logging.config
 from pathlib import Path
@@ -48,37 +37,113 @@ class LoggerManager:
             self._default_config_loaded = False
             LoggerManager._initialized = True
 
-    def load_config(self, config_path: str | None = None) -> None:
+    def load_config(
+        self,
+        config_path: str | Path | None = None,
+    ) -> None:
         """
-        Load logging configuration from YAML file.
+        Loads and sets up the logging configuration for the application.
+
+        This method first attempts to load a base logging configuration from a default YAML file.
+        If a specific configuration file path is provided, it tries to load and merge it with the base configuration.
+        If the specific configuration file does not exist, a default configuration is created at the specified path.
+        In case of any errors during loading or merging, it falls back to setting up basic logging.
 
         Args:
-            config_path: Path to the YAML configuration file.
-                        If None, looks for 'logging_config.yaml' in the backend root.
-        """
-        if config_path is None:
-            # Look for config in backend root directory
-            config_path_obj = BACKEND_DIR / "logging_config.yaml"
-        else:
-            config_path_obj = Path(config_path)
+            config_path (str | Path | None, optional): Path to a specific logging configuration YAML file.
+                If None, only the base configuration is used.
 
-        if not config_path_obj.exists():
+        Raises:
+            Exception: If loading the base configuration fails.
+        """
+        base_config_path = BACKEND_DIR / "logging_config_base.yaml"
+
+        # Try to load base config
+        try:
+            with Path.open(base_config_path, encoding="utf-8") as f:
+                self._config = yaml.safe_load(f)
+                print(
+                    f"Base logging configuration loaded from: {base_config_path}"
+                )
+        except Exception as e:
+            err = "Error loading base logging config"
+            # TODO: fallback
+            raise Exception(err) from e
+
+        # No specific config needed
+        if config_path is None:
+            self._setup_logging()
+            return
+
+        # Specific config path provided but not found, creating one
+        config_path = Path(config_path)
+        if not config_path.exists():
             print(
-                f"Warning: Logging config file not found at {config_path_obj}"
+                f"Warning: Specific logging config file not found at {config_path}, creating default there."
             )
-            print("Creating default configuration...")
-            self._create_default_config(config_path_obj)
+            self._create_default_config(config_path)
+            self._setup_logging()
+            return
+
+        # Try to load specific config
+        try:
+            with config_path.open(encoding="utf-8") as f:
+                specific_config = yaml.safe_load(f)
+            print(f"Specific logging configuration loaded from: {config_path}")
+        except Exception as e:
+            print(f"Error loading specific logging config: {e}")
+            # We set up logging with basic configuration
+            self._setup_logging()
+            return
 
         try:
-            with config_path_obj.open(encoding="utf-8") as f:
-                self._config = yaml.safe_load(f)
-
-            self._setup_logging()
-            print(f"Logging configuration loaded from: {config_path_obj}")
-
+            self._config = self._merge_configs(self._config, specific_config)
         except Exception as e:
-            print(f"Error loading logging config: {e}")
-            self._load_fallback_config()
+            print(f"Error merging logging config: {e}")
+
+        self._setup_logging()
+
+    def _merge_configs(
+        self, base_config: dict[str, Any], specific_config: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Merge specific configuration into base configuration.
+
+        This method performs a deep merge where:
+        - Lists are replaced entirely from specific config
+        - Dictionaries are merged recursively
+        - Primitive values in specific config override base config
+
+        Args:
+            base_config: The base configuration dictionary
+            specific_config: The specific configuration to merge in
+
+        Returns:
+            Merged configuration dictionary
+        """
+        # Create a deep copy of base config to avoid modifying the original
+        merged = deepcopy(base_config)
+
+        def _deep_merge(
+            base_dict: dict[str, Any], specific_dict: dict[str, Any]
+        ) -> dict[str, Any]:
+            """Recursively merge two dictionaries."""
+            for key, value in specific_dict.items():
+                if key in base_dict:
+                    if isinstance(base_dict[key], dict) and isinstance(
+                        value, dict
+                    ):
+                        # Both are dicts, merge recursively
+                        base_dict[key] = _deep_merge(base_dict[key], value)
+                    else:
+                        # Either not both dicts, or one is None - replace with specific value
+                        base_dict[key] = deepcopy(value)
+                else:
+                    # Key doesn't exist in base, add it
+                    base_dict[key] = deepcopy(value)
+            return base_dict
+
+        return _deep_merge(merged, specific_config)
 
     def _create_default_config(self, config_path: Path) -> None:
         """Create a default logging configuration file."""
@@ -120,14 +185,14 @@ class LoggerManager:
                     "class": "logging.FileHandler",
                     "level": "DEBUG",
                     "formatter": "detailed",
-                    "filename": "logs/backend.log",
+                    "filename": "logs/log.log",
                     "encoding": "utf-8",
                 },
                 "rotating_file": {
                     "class": "logging.handlers.RotatingFileHandler",
                     "level": "DEBUG",
                     "formatter": "detailed",
-                    "filename": "logs/backend_rotating.log",
+                    "filename": "logs/log_rotating.log",
                     "maxBytes": 10485760,  # 10MB
                     "backupCount": 5,
                     "encoding": "utf-8",
@@ -141,34 +206,15 @@ class LoggerManager:
                 },
             },
             "loggers": {
-                "backend": {
-                    "level": "DEBUG",
-                    "handlers": ["console", "file", "rotating_file"],
-                    "propagate": False,
-                }
-            },
-            "root": {
-                "level": "INFO",
-                "handlers": ["console", "error_file"],
+                "root": {
+                    "level": "INFO",
+                    "handlers": ["console", "error_file"],
+                },
             },
             "custom": {
                 "enabled_loggers": ["console", "file"],
-                "ignored_packages": [
-                    # "urllib3.connectionpool",
-                    # "selenium.webdriver.remote.remote_connection",
-                    # "asyncio",
-                    # "aiofiles",
-                    # "httpx",
-                    # "httpcore",
-                ],
-                "package_levels": {
-                    # "psycopg2": "WARNING",
-                    # "requests": "WARNING",
-                    # "selenium": "WARNING",
-                    # "urllib3": "WARNING",
-                    # "openai": "INFO",
-                    # "mcp": "INFO",
-                },
+                "ignored_packages": [],
+                "package_levels": {},
                 "log_directory": "logs",
                 "max_file_size_mb": 10,
                 "backup_count": 5,
@@ -244,12 +290,15 @@ class LoggerManager:
 
         return self._loggers[name]
 
-    def reload_config(self, config_path: str | None = None) -> None:
+    def reload_config(
+        self,
+        config_path: str | Path | None = None,
+    ) -> None:
         """
         Reload the logging configuration.
 
         Args:
-            config_path: Path to the YAML configuration file
+            config_path: Path to the specific YAML configuration file
         """
         self.load_config(config_path)
         print("Logging configuration reloaded")
@@ -309,12 +358,12 @@ class LoggerManager:
 logger_manager = LoggerManager()
 
 
-def setup_logging(config_path: str | None = None) -> None:
+def setup_logging(config_path: str | Path | None = None) -> None:
     """
-    Initialize the logging system.
+    Initialize the logging system with support for hierarchical configurations.
 
     Args:
-        config_path: Path to the YAML configuration file
+        config_path: Path to the specific YAML configuration file
     """
     logger_manager.load_config(config_path)
 
@@ -332,14 +381,16 @@ def get_logger(name: str) -> logging.Logger:
     return logger_manager.get_logger(name)
 
 
-def reload_logging_config(config_path: str | None = None) -> None:
+def reload_logging_config(config_path: str | Path | None = None) -> None:
     """
-    Reload the logging configuration.
+    Reload the logging configuration with support for hierarchical configs.
 
     Args:
-        config_path: Path to the YAML configuration file
+        config_path: Path to the specific YAML configuration file
     """
-    logger_manager.reload_config(config_path)
+    logger_manager.reload_config(
+        config_path,
+    )
 
 
 def set_package_log_level(package: str, level: str) -> None:

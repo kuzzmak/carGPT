@@ -8,7 +8,7 @@ from backend.database import AdColumns
 from backend.logging_config import get_logger
 
 # Set up logging
-logger = get_logger(__name__)
+logger = get_logger("database")
 
 ADS_TABLE_NAME = "ads"
 

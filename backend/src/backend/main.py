@@ -14,6 +14,7 @@ Endpoints:
 """
 
 from datetime import datetime
+import json
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,9 +22,11 @@ from pydantic import BaseModel, Field
 
 from backend.database import Database
 from backend.logging_config import get_logger, setup_logging
+from backend.paths import BACKEND_DIR
 
-setup_logging()
-logger = get_logger(__name__)
+# Setup main backend logging with base configuration extension
+setup_logging(BACKEND_DIR / "logging_config.yaml")
+logger = get_logger("backend")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -217,6 +220,8 @@ async def search_ads(
             search_dict["transmission"] = criteria.transmission
         if criteria.condition:
             search_dict["condition"] = criteria.condition
+
+        logger.debug(f"Search criteria: {json.dumps(search_dict)}")
 
         # For range queries, we'll need to modify the database method or handle them differently
         # For now, let's use exact matches for the basic implementation
