@@ -1,15 +1,14 @@
 from contextlib import contextmanager
-import logging
 import os
 from typing import Any
 
 import psycopg2
 
 from backend.database import AdColumns
+from backend.logging_config import get_logger
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 ADS_TABLE_NAME = "ads"
 

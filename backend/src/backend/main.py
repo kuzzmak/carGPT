@@ -14,17 +14,16 @@ Endpoints:
 """
 
 from datetime import datetime
-import logging
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from backend.database import Database
+from backend.logging_config import get_logger, setup_logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+setup_logging()
+logger = get_logger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
