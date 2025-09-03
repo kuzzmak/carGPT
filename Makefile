@@ -83,11 +83,6 @@ rebuild: ## Rebuild and restart all services
 	$(COMPOSE_CMD) up -d
 	@echo "🔄 Services rebuilt and restarted"
 
-# Development helpers
-dev-setup: build up ## Complete development setup (build and start)
-	@echo "✅ Development environment ready!"
-	@echo "📝 API Documentation: http://localhost:8000/docs"
-
 # Production helpers
 prod-deploy: ## Deploy in production mode
 	$(COMPOSE_CMD) -f docker-compose.yml -f docker-compose.prod.yml up -d --build
@@ -103,49 +98,3 @@ db-restore: ## Restore database from backup (requires BACKUP_FILE=path)
 	@if [ -z "$(BACKUP_FILE)" ]; then echo "❌ Please specify BACKUP_FILE=path"; exit 1; fi
 	$(COMPOSE_CMD) exec -T postgres psql -U adsuser ads_db < $(BACKUP_FILE)
 	@echo "📥 Database restored from $(BACKUP_FILE)"
-
-# FastAPI server commands
-.PHONY: run run-dev run-prod
-
-# Start FastAPI server in development mode
-run: ## Start FastAPI server with auto-reload
-	uv run uvicorn src.backend.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Alternative development server command
-run-dev: ## Start FastAPI development server
-	uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
-
-# Start FastAPI server in production mode
-run-prod: ## Start FastAPI server in production mode
-	uv run uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-
-# Quick server start using the start_server.sh script
-quick-start: ## Quick start using start_server.sh script
-	./start_server.sh
-
-# Check API health
-health-check: ## Check if the API server is running
-	@curl -f http://localhost:8000/health || echo "❌ Server not running"
-
-# Open API documentation in browser
-docs: ## Open API documentation in default browser
-	@echo "📝 Opening API docs at http://localhost:8000/docs"
-	@python -m webbrowser http://localhost:8000/docs || echo "Please open http://localhost:8000/docs manually"
-
-# Install dependencies using uv
-.PHONY: install sync
-install: ## Install dependencies using uv
-	uv sync
-
-sync: ## Sync dependencies using uv (alias for install)
-	uv sync
-
-# Format code with ruff
-.PHONY: format
-format:
-	uv run ruff format .
-
-# Run tests with pytest
-.PHONY: test-unit
-test-unit: ## Run unit tests with pytest
-	uv run pytest
