@@ -18,6 +18,8 @@ from typing import Any
 
 import yaml
 
+from backend.paths import BACKEND_DIR
+
 
 class LoggerManager:
     """
@@ -56,8 +58,7 @@ class LoggerManager:
         """
         if config_path is None:
             # Look for config in backend root directory
-            backend_root = Path(__file__).parent.parent.parent
-            config_path_obj = backend_root / "logging_config.yaml"
+            config_path_obj = BACKEND_DIR / "logging_config.yaml"
         else:
             config_path_obj = Path(config_path)
 
