@@ -1,4 +1,4 @@
-from backend.database import AdColumns
+from shared.database import AdColumns
 
 TRANSLATIONS = {
     "Lokacija vozila": AdColumns.LOCATION,

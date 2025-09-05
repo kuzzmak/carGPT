@@ -14,7 +14,7 @@ import psycopg2
 import pytest
 from testcontainers.postgres import PostgresContainer
 
-from backend.session.session import PostgreSQLSession
+from shared.session import PostgreSQLSession
 
 # Test constants
 EXPECTED_ITEM_COUNT = 2
@@ -136,7 +136,7 @@ class TestPostgreSQLSession:
 
     def test_psycopg2_import_error(self):
         """Test error handling when psycopg2 is not available."""
-        with patch("backend.session.session.psycopg2", None):
+        with patch("shared.session.session.psycopg2", None):
             session = PostgreSQLSession("test", "postgresql://test")
             with pytest.raises(ImportError, match="psycopg2 is required"):
                 session._get_psycopg2()

@@ -4,8 +4,8 @@ from typing import Any
 
 import psycopg2
 
-from backend.database import AdColumns
-from backend.logging_config import get_logger
+from shared.database import AdColumns
+from shared.logging_config import get_logger
 
 # Set up logging
 logger = get_logger("database")

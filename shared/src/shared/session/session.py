@@ -18,8 +18,6 @@ except ImportError:
 
 from agents.memory.session import SessionABC
 
-if TYPE_CHECKING and psycopg2 is not None:
-    pass
 
 # Use Any for now since the exact type structure is not available
 TResponseInputItem = Any

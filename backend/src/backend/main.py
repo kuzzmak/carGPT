@@ -1,28 +1,14 @@
-"""
-FastAPI server for CarGPT backend.
-
-This FastAPI application provides REST API endpoints for accessing car ads data
-stored in PostgreSQL database through the Database class.
-
-Endpoints:
-- GET /ads - Get all ads (with optional limit)
-- GET /ads/{ad_id} - Get a specific ad by ID
-- POST /ads/search - Search ads by criteria
-- POST /ads/search/text - Search ads by text
-- GET /health - Health check endpoint
-- GET /stats - Get database statistics
-"""
-
-from datetime import datetime
 import json
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from backend.database import Database
-from backend.logging_config import get_logger, setup_logging
 from backend.paths import BACKEND_DIR
+
+from shared.database import Database
+from shared.logging_config import get_logger, setup_logging
 
 # Setup main backend logging with base configuration extension
 setup_logging(BACKEND_DIR / "logging_config.yaml")

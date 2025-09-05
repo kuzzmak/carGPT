@@ -24,8 +24,8 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from backend.database import Database
-from backend.translations import TRANSLATIONS
+from shared.database import Database
+from shared.translations import TRANSLATIONS
 
 PAGE_TIMEOUT = 30
 

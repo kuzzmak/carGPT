@@ -7,7 +7,7 @@ import psycopg2
 import pytest
 from testcontainers.postgres import PostgresContainer
 
-from backend.database import AdColumns, Database
+from shared.database import AdColumns, Database
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

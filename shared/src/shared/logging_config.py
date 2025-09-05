@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from backend.paths import BACKEND_DIR
+from shared.paths import SHARED_DIR
 
 
 class LoggerManager:
@@ -56,7 +56,7 @@ class LoggerManager:
         Raises:
             Exception: If loading the base configuration fails.
         """
-        base_config_path = BACKEND_DIR / "logging_config_base.yaml"
+        base_config_path = SHARED_DIR / "logging_config_base.yaml"
 
         # Try to load base config
         try:
