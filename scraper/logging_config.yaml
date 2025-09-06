@@ -1,0 +1,11 @@
+handlers:
+  console:
+    level: DEBUG
+  file:
+    filename: logs/shared.log
+
+loggers:
+  shared:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: false
