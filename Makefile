@@ -17,6 +17,7 @@ help: ## Show this help message
 format:
 	cd backend && uv run ruff format . && uv run isort . && cd ..
 	cd scraper && uv run ruff format . && uv run isort . && cd ..
+	cd mcp_servers && uv run ruff format . && uv run isort . && cd ..
 
 build: ## Build the backend Docker image
 	$(COMPOSE_CMD) build --no-cache
