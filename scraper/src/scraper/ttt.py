@@ -24,10 +24,11 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from shared.database import Database
-from shared.translations import TRANSLATIONS
-from shared.logging_config import get_logger, setup_logging
 from scraper.paths import SCRAPER_DIR
+
+from shared.database import Database
+from shared.logging_config import get_logger, setup_logging
+from shared.translations import TRANSLATIONS
 
 PAGE_TIMEOUT = 30
 
