@@ -7,8 +7,107 @@ authors = [
     { name = "kuzzmak", email = "kuzminski.antonio@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "mcp>=1.13.1",
+    "shared",
+]
 
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+# Same as Black.
+line-length = 79
+indent-width = 4
+
+# Assume Python 3.12
+target-version = "py312"
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+select = [
+    "E4",      # pycodestyle errors
+    "E7",
+    "E9",
+    "F",       # Pyflakes
+    "UP",      # pyupgrade
+    "B",       # flake8-bugbear
+    "C4",      # flake8-comprehensions
+    "PIE",     # flake8-pie
+    "SIM",     # flake8-simplify
+    "RET",     # flake8-return
+    "ARG",     # flake8-unused-arguments
+    "PTH",     # flake8-use-pathlib
+    "ERA",     # eradicate (remove commented-out code)
+    "PL",      # Pylint
+    "PERF",    # Perflint
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.uv.sources]
+shared = { path = "../shared", editable = true }
+
+[tool.ruff.lint.pylint]
+# Maximum number of arguments for function / method
+max-args = 8
+# Maximum number of branches for function / method body
+max-branches = 15
+
+[tool.isort]
+multi_line_output = 3
+use_parentheses = true
+known_local_folder = "shared"
+include_trailing_comma = true
+
+[dependency-groups]
+dev = [
+    "isort>=6.0.1",
+    "ruff>=0.12.12",
+]
