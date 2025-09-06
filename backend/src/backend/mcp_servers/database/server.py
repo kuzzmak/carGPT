@@ -4,11 +4,19 @@ from mcp.server.fastmcp import FastMCP
 
 from backend.database import AdColumns
 from backend.database.database import Database
-from shared.src.shared.logging_config import get_logger, setup_logging
 from backend.paths import BACKEND_DIR
 
+from shared.src.shared.logging_config import get_logger, setup_logging
+
 # Setup MCP-specific logging with base configuration extension
-logging_config_path = BACKEND_DIR / "src" / "backend" / "mcp_servers" / "database" / "logging_config_mcp.yaml"
+logging_config_path = (
+    BACKEND_DIR
+    / "src"
+    / "backend"
+    / "mcp_servers"
+    / "database"
+    / "logging_config_mcp.yaml"
+)
 setup_logging(logging_config_path)
 logger = get_logger("mcp_database_server")
 
