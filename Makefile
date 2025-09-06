@@ -5,7 +5,7 @@
 ENV ?= dev
 COMPOSE_CMD = docker compose
 
-.PHONY: help format build up down restart logs shell test clean
+.PHONY: help format build up down restart logs shell test clean start-scraper
 
 # Default target
 help: ## Show this help message
@@ -102,3 +102,8 @@ db-restore: ## Restore database from backup (requires BACKUP_FILE=path)
 	@if [ -z "$(BACKUP_FILE)" ]; then echo "❌ Please specify BACKUP_FILE=path"; exit 1; fi
 	$(COMPOSE_CMD) exec -T postgres psql -U adsuser ads_db < $(BACKUP_FILE)
 	@echo "📥 Database restored from $(BACKUP_FILE)"
+
+start-scraper:
+	@echo "🚀 Starting scraper..."
+	cd scraper && uv run --env-file ../.env src/scraper/ttt.py && cd ..
+	@echo "✅ Scraper finished"
