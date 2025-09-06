@@ -117,3 +117,4 @@ max-branches = 15
 multi_line_output = 3
 use_parentheses = true
 known_local_folder = "shared"
+include_trailing_comma = true
