@@ -8,6 +8,8 @@ from backend.paths import BACKEND_DIR
 
 from shared.src.shared.logging_config import get_logger, setup_logging
 
+# TODO: add resources, prompts? to the server
+
 # Setup MCP-specific logging with base configuration extension
 logging_config_path = (
     BACKEND_DIR
