@@ -5,7 +5,7 @@
 ENV ?= dev
 COMPOSE_CMD = docker compose
 
-.PHONY: help build up down restart logs shell test clean
+.PHONY: help format build up down restart logs shell test clean
 
 # Default target
 help: ## Show this help message
@@ -13,6 +13,10 @@ help: ## Show this help message
 	@echo "================================"
 	@echo "Available commands:"
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ { printf "  %-15s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+
+format:
+	cd backend && uv run ruff format . && uv run isort . && cd ..
+	cd scraper && uv run ruff format . && uv run isort . && cd ..
 
 build: ## Build the backend Docker image
 	$(COMPOSE_CMD) build --no-cache
