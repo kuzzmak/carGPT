@@ -26,14 +26,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from shared.database import Database
 from shared.translations import TRANSLATIONS
+from shared.logging_config import get_logger, setup_logging
+from scraper.paths import SCRAPER_DIR
 
 PAGE_TIMEOUT = 30
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+setup_logging(SCRAPER_DIR / "logging_config.yaml")
+logger = get_logger("scraper")
 
 
 class TorFirefoxScraper:

@@ -5,7 +5,7 @@ handlers:
     filename: logs/shared.log
 
 loggers:
-  shared:
+  scraper:
     level: DEBUG
     handlers: [console, file]
     propagate: false
