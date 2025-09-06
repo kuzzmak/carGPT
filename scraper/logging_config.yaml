@@ -2,7 +2,7 @@ handlers:
   console:
     level: DEBUG
   file:
-    filename: logs/shared.log
+    filename: logs/scraper.log
 
 loggers:
   scraper:
