@@ -3,7 +3,6 @@
 Tor + Firefox Selenium scraper for Njuškalo cars page
 """
 
-from datetime import datetime, timedelta
 import logging
 import os
 import pprint
@@ -12,6 +11,7 @@ import re
 import signal
 import subprocess
 import time
+from datetime import datetime, timedelta
 from typing import Any
 
 import requests
