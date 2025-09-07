@@ -89,11 +89,16 @@ class SearchCriteria(BaseModel):
     price_max: float | None = None
     manufacture_year_min: int | None = None
     manufacture_year_max: int | None = None
+    mileage_min: int | None = None
     mileage_max: int | None = None
+    power_min: int | None = None
+    power_max: int | None = None
     location: str | None = None
     engine: str | None = None
     transmission: str | None = None
     condition: str | None = None
+    text_search: str | None = None
+    text_search_fields: list[str] | None = None
 
 
 class TextSearchRequest(BaseModel):
@@ -189,29 +194,81 @@ async def search_ads(
         description="Maximum number of results to return",
     ),
 ):
-    """Search ads by criteria."""
+    """Search ads by criteria with support for exact matches, ranges, and text search."""
     try:
-        # Convert the search criteria to a dictionary, filtering out None values
-        search_dict = {}
-
+        # Build exact criteria
+        exact_criteria = {}
         if criteria.make:
-            search_dict["make"] = criteria.make
+            exact_criteria["make"] = criteria.make
         if criteria.model:
-            search_dict["model"] = criteria.model
+            exact_criteria["model"] = criteria.model
         if criteria.location:
-            search_dict["location"] = criteria.location
+            exact_criteria["location"] = criteria.location
         if criteria.engine:
-            search_dict["engine"] = criteria.engine
+            exact_criteria["engine"] = criteria.engine
         if criteria.transmission:
-            search_dict["transmission"] = criteria.transmission
+            exact_criteria["transmission"] = criteria.transmission
         if criteria.condition:
-            search_dict["condition"] = criteria.condition
+            exact_criteria["condition"] = criteria.condition
 
-        logger.debug(f"Search criteria: {json.dumps(search_dict)}")
+        # Build range criteria
+        range_criteria = {}
+        if criteria.price_min is not None or criteria.price_max is not None:
+            range_criteria["price"] = {}
+            if criteria.price_min is not None:
+                range_criteria["price"]["min"] = criteria.price_min
+            if criteria.price_max is not None:
+                range_criteria["price"]["max"] = criteria.price_max
 
-        # For range queries, we'll need to modify the database method or handle them differently
-        # For now, let's use exact matches for the basic implementation
-        return db.get_ads_by_criteria(search_dict, limit=limit)
+        if (
+            criteria.manufacture_year_min is not None
+            or criteria.manufacture_year_max is not None
+        ):
+            range_criteria["manufacture_year"] = {}
+            if criteria.manufacture_year_min is not None:
+                range_criteria["manufacture_year"]["min"] = (
+                    criteria.manufacture_year_min
+                )
+            if criteria.manufacture_year_max is not None:
+                range_criteria["manufacture_year"]["max"] = (
+                    criteria.manufacture_year_max
+                )
+
+        if (
+            criteria.mileage_min is not None
+            or criteria.mileage_max is not None
+        ):
+            range_criteria["mileage"] = {}
+            if criteria.mileage_min is not None:
+                range_criteria["mileage"]["min"] = criteria.mileage_min
+            if criteria.mileage_max is not None:
+                range_criteria["mileage"]["max"] = criteria.mileage_max
+
+        if criteria.power_min is not None or criteria.power_max is not None:
+            range_criteria["power"] = {}
+            if criteria.power_min is not None:
+                range_criteria["power"]["min"] = criteria.power_min
+            if criteria.power_max is not None:
+                range_criteria["power"]["max"] = criteria.power_max
+
+        # Build text search criteria
+        text_search = None
+        if criteria.text_search:
+            text_search = {"term": criteria.text_search}
+            if criteria.text_search_fields:
+                text_search["fields"] = criteria.text_search_fields
+
+        logger.debug(
+            f"Search - Exact: {exact_criteria}, Range: {range_criteria}, Text: {text_search}"
+        )
+
+        # Use the new search_ads method
+        return db.search_ads(
+            exact_criteria=exact_criteria if exact_criteria else None,
+            range_criteria=range_criteria if range_criteria else None,
+            text_search=text_search,
+            limit=limit,
+        )
     except Exception as e:
         logger.error(f"Error searching ads: {e}")
         raise HTTPException(

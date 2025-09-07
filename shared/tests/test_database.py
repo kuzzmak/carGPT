@@ -281,14 +281,10 @@ class TestDatabase:
         assert x5_ads[0][AdColumns.ID] == ad1_id
 
         # Search with non-existent criteria
-        non_existent = database.get_ads_by_criteria(
-            {AdColumns.MAKE: "NonExistentMake"}
-        )
+        non_existent = database.get_ads_by_criteria({AdColumns.MAKE: "NonExistentMake"})
         assert len(non_existent) == 0
 
-    def test_get_ads_by_criteria_empty_criteria(
-        self, database, sample_ad_data
-    ):
+    def test_get_ads_by_criteria_empty_criteria(self, database, sample_ad_data):
         """Test getting ads with empty criteria."""
         database.insert_ad(sample_ad_data)
 
@@ -437,20 +433,14 @@ class TestDatabase:
         assert len(results) == 1
 
         # Search in transmission field
-        results = database.search_ads_by_text(
-            "Auto", fields=[AdColumns.TRANSMISSION]
-        )
+        results = database.search_ads_by_text("Auto", fields=[AdColumns.TRANSMISSION])
         assert len(results) == 1
 
         # Search in non-matching field
-        results = database.search_ads_by_text(
-            "TDI", fields=[AdColumns.TRANSMISSION]
-        )
+        results = database.search_ads_by_text("TDI", fields=[AdColumns.TRANSMISSION])
         assert len(results) == 0
 
-    def test_search_ads_by_text_case_insensitive(
-        self, database, sample_ad_data
-    ):
+    def test_search_ads_by_text_case_insensitive(self, database, sample_ad_data):
         """Test that text search is case insensitive."""
         ad_data = sample_ad_data.copy()
         ad_data[AdColumns.MAKE] = "BMW"
@@ -625,16 +615,16 @@ class TestDatabase:
             assert ad_id is not None
 
         # Test exact criteria + range criteria
-        results = database.search_ads_with_range(
-            criteria={AdColumns.MAKE: "Volkswagen"},
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "Volkswagen"},
             range_criteria={AdColumns.PRICE: {"min": 20000}},
         )
         assert len(results) == 1
         assert results[0]["model"] == "Passat"
 
         # Test location + mileage range
-        results = database.search_ads_with_range(
-            criteria={AdColumns.LOCATION: "Zagreb"},
+        results = database.search_ads(
+            exact_criteria={AdColumns.LOCATION: "Zagreb"},
             range_criteria={AdColumns.MILEAGE: {"max": 65000}},
         )
         assert len(results) == 1
@@ -692,9 +682,7 @@ class TestDatabase:
         assert len(results) == 2
 
         # Test with None criteria
-        results = database.search_ads_with_range(
-            criteria=None, range_criteria=None
-        )
+        results = database.search_ads_with_range(criteria=None, range_criteria=None)
         assert len(results) == 2
 
     def test_search_ads_with_range_limit(self, database):
@@ -813,6 +801,428 @@ class TestDatabase:
         assert len(results) == 1
         assert results[0]["make"] == "Small"
 
+    def test_search_ads_exact_criteria_only(self, database):
+        """Test search_ads with only exact criteria."""
+        # Insert test data
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X5",
+                AdColumns.LOCATION: "Zagreb",
+                AdColumns.PRICE: 25000.00,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X3",
+                AdColumns.LOCATION: "Split",
+                AdColumns.PRICE: 35000.00,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Audi",
+                AdColumns.MODEL: "A4",
+                AdColumns.LOCATION: "Zagreb",
+                AdColumns.PRICE: 30000.00,
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test exact criteria search
+        results = database.search_ads(exact_criteria={AdColumns.MAKE: "BMW"})
+        assert len(results) == 2
+        for result in results:
+            assert result["make"] == "BMW"
+
+        # Test multiple exact criteria
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "BMW", AdColumns.LOCATION: "Zagreb"}
+        )
+        assert len(results) == 1
+        assert results[0]["model"] == "X5"
+
+    def test_search_ads_range_criteria_only(self, database):
+        """Test search_ads with only range criteria."""
+        # Insert test data
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Car1",
+                AdColumns.MODEL: "Model1",
+                AdColumns.PRICE: 15000.00,
+                AdColumns.MILEAGE: 50000,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Car2",
+                AdColumns.MODEL: "Model2",
+                AdColumns.PRICE: 25000.00,
+                AdColumns.MILEAGE: 30000,
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Car3",
+                AdColumns.MODEL: "Model3",
+                AdColumns.PRICE: 35000.00,
+                AdColumns.MILEAGE: 70000,
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test price range only
+        results = database.search_ads(
+            range_criteria={AdColumns.PRICE: {"min": 20000, "max": 30000}}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "Car2"
+
+        # Test multiple range criteria
+        results = database.search_ads(
+            range_criteria={
+                AdColumns.PRICE: {"min": 10000},
+                AdColumns.MILEAGE: {"max": 60000},
+            }
+        )
+        assert len(results) == 2
+        # Should include Car1 (50k mileage) and Car2 (30k mileage), but not Car3 (70k mileage)
+
+    def test_search_ads_text_search_only(self, database):
+        """Test search_ads with only text search."""
+        # Insert test data
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X5",
+                AdColumns.LOCATION: "Zagreb",
+                AdColumns.TYPE: "SUV",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Mercedes",
+                AdColumns.MODEL: "BMW",  # BMW in model field
+                AdColumns.LOCATION: "Split",
+                AdColumns.TYPE: "Sedan",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Audi",
+                AdColumns.MODEL: "A4",
+                AdColumns.LOCATION: "BMW Street",  # BMW in location
+                AdColumns.TYPE: "Sedan",
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test default text search
+        results = database.search_ads(text_search={"term": "BMW"})
+        assert len(results) == 3
+
+        # Test custom fields text search
+        results = database.search_ads(
+            text_search={"term": "SUV", "fields": [AdColumns.TYPE]}
+        )
+        assert len(results) == 1
+        assert results[0]["make"] == "BMW"
+
+        # Test case insensitive
+        results = database.search_ads(text_search={"term": "bmw"})
+        assert len(results) == 3
+
+    def test_search_ads_combined_criteria(self, database):
+        """Test search_ads with BMW cars between 10000 and 50000 price range."""
+        # Insert test data - the main use case from the request
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X5",
+                AdColumns.PRICE: 35000.00,
+                AdColumns.MILEAGE: 45000,
+                AdColumns.LOCATION: "Zagreb",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "320i",
+                AdColumns.PRICE: 15000.00,
+                AdColumns.MILEAGE: 80000,
+                AdColumns.LOCATION: "Split",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "M3",
+                AdColumns.PRICE: 60000.00,  # Outside price range
+                AdColumns.MILEAGE: 25000,
+                AdColumns.LOCATION: "Rijeka",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Mercedes",
+                AdColumns.MODEL: "C-Class",
+                AdColumns.PRICE: 25000.00,  # In price range but not BMW
+                AdColumns.MILEAGE: 50000,
+                AdColumns.LOCATION: "Osijek",
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test the main use case: BMW cars with price between 10000 and 50000
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "BMW"},
+            range_criteria={AdColumns.PRICE: {"min": 10000, "max": 50000}},
+        )
+        assert len(results) == 2
+        for result in results:
+            assert result["make"] == "BMW"
+            assert 10000 <= result["price"] <= 50000
+
+        # Verify the specific models found
+        models = [result["model"] for result in results]
+        assert "X5" in models
+        assert "320i" in models
+        assert "M3" not in models  # Too expensive
+
+    def test_search_ads_all_criteria_types(self, database):
+        """Test search_ads with exact, range, and text criteria combined."""
+        # Insert comprehensive test data
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X5 Sport",
+                AdColumns.PRICE: 35000.00,
+                AdColumns.MILEAGE: 45000,
+                AdColumns.LOCATION: "Zagreb",
+                AdColumns.TYPE: "SUV",
+                AdColumns.TRANSMISSION: "Automatic",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "320i Comfort",
+                AdColumns.PRICE: 25000.00,
+                AdColumns.MILEAGE: 60000,
+                AdColumns.LOCATION: "Split",
+                AdColumns.TYPE: "Sedan",
+                AdColumns.TRANSMISSION: "Manual",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X3 Base",
+                AdColumns.PRICE: 30000.00,
+                AdColumns.MILEAGE: 55000,
+                AdColumns.LOCATION: "Rijeka",
+                AdColumns.TYPE: "SUV",
+                AdColumns.TRANSMISSION: "Automatic",
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test all three criteria types together
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "BMW", AdColumns.TRANSMISSION: "Automatic"},
+            range_criteria={
+                AdColumns.PRICE: {"min": 30000, "max": 40000},
+                AdColumns.MILEAGE: {"max": 50000},
+            },
+            text_search={"term": "Sport", "fields": [AdColumns.MODEL]},
+        )
+        assert len(results) == 1
+        assert results[0]["model"] == "X5 Sport"
+
+        # Test different combination
+        results = database.search_ads(
+            exact_criteria={AdColumns.TYPE: "SUV"},
+            range_criteria={AdColumns.PRICE: {"max": 32000}},
+        )
+        assert len(results) == 1
+        assert results[0]["model"] == "X3 Base"
+
+    def test_search_ads_no_criteria(self, database):
+        """Test search_ads with no criteria (should return all ads)."""
+        # Insert test data
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Car1",
+                AdColumns.MODEL: "Model1",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "Car2",
+                AdColumns.MODEL: "Model2",
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+
+        # Test with no criteria
+        results = database.search_ads()
+        assert len(results) == 2
+
+        # Test with all None criteria
+        results = database.search_ads(
+            exact_criteria=None, range_criteria=None, text_search=None
+        )
+        assert len(results) == 2
+
+    def test_search_ads_no_results(self, database):
+        """Test search_ads with criteria that match no ads."""
+        # Insert test data
+        test_ad = {
+            AdColumns.DATE_CREATED: datetime.now(UTC),
+            AdColumns.MAKE: "BMW",
+            AdColumns.MODEL: "X5",
+            AdColumns.PRICE: 25000.00,
+        }
+
+        ad_id = database.insert_ad(test_ad)
+        assert ad_id is not None
+
+        # Test exact criteria with no match
+        results = database.search_ads(exact_criteria={AdColumns.MAKE: "NonExistent"})
+        assert len(results) == 0
+
+        # Test range criteria with no match
+        results = database.search_ads(range_criteria={AdColumns.PRICE: {"min": 50000}})
+        assert len(results) == 0
+
+        # Test text search with no match
+        results = database.search_ads(text_search={"term": "NonExistentTerm"})
+        assert len(results) == 0
+
+        # Test impossible combination
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "BMW"},
+            range_criteria={AdColumns.PRICE: {"min": 50000}},  # BMW costs 25k
+        )
+        assert len(results) == 0
+
+    def test_search_ads_with_limit(self, database):
+        """Test search_ads with limit parameter."""
+        # Insert multiple BMW ads
+        for i in range(5):
+            test_ad = {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: f"Model{i}",
+                AdColumns.PRICE: 20000.00 + (i * 1000),
+            }
+            ad_id = database.insert_ad(test_ad)
+            assert ad_id is not None
+
+        # Test with limit
+        results = database.search_ads(exact_criteria={AdColumns.MAKE: "BMW"}, limit=3)
+        assert len(results) == 3
+
+        # Test range search with limit
+        results = database.search_ads(
+            range_criteria={AdColumns.PRICE: {"min": 20000}}, limit=2
+        )
+        assert len(results) == 2
+
+    def test_search_ads_invalid_range_column(self, database):
+        """Test search_ads with invalid range column."""
+        # Insert test data
+        test_ad = {
+            AdColumns.DATE_CREATED: datetime.now(UTC),
+            AdColumns.MAKE: "BMW",
+            AdColumns.MODEL: "X5",
+        }
+
+        ad_id = database.insert_ad(test_ad)
+        assert ad_id is not None
+
+        # Test with invalid range column (should be ignored)
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "BMW"},
+            range_criteria={"invalid_column": {"min": 100}},
+        )
+        assert len(results) == 1  # Should find the BMW despite invalid range
+
+    def test_search_ads_empty_text_search(self, database):
+        """Test search_ads with empty text search term."""
+        # Insert test data
+        test_ad = {
+            AdColumns.DATE_CREATED: datetime.now(UTC),
+            AdColumns.MAKE: "BMW",
+            AdColumns.MODEL: "X5",
+        }
+
+        ad_id = database.insert_ad(test_ad)
+        assert ad_id is not None
+
+        # Test with empty search term
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "BMW"},
+            text_search={"term": ""},
+        )
+        assert len(results) == 1  # Should ignore empty text search
+
+        # Test with None search term
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "BMW"},
+            text_search={"term": None},
+        )
+        assert len(results) == 1  # Should ignore None text search
+
+    def test_search_ads_ordering(self, database):
+        """Test that search_ads returns results ordered by insertion_time DESC."""
+        # Insert test data with delays to ensure different insertion times
+        import time
+
+        test_ads = [
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "First",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "Second",
+            },
+            {
+                AdColumns.DATE_CREATED: datetime.now(UTC),
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "Third",
+            },
+        ]
+
+        for ad in test_ads:
+            ad_id = database.insert_ad(ad)
+            assert ad_id is not None
+            time.sleep(0.01)  # Small delay to ensure different insertion times
+
+        # Test ordering
+        results = database.search_ads(exact_criteria={AdColumns.MAKE: "BMW"})
+        assert len(results) == 3
+        # Should be ordered by insertion_time DESC (most recent first)
+        assert results[0]["model"] == "Third"
+        assert results[1]["model"] == "Second"
+        assert results[2]["model"] == "First"
+
 
 class TestDatabaseErrorHandling:
     """Test error handling in Database class."""
@@ -853,10 +1263,7 @@ class TestDatabaseErrorHandling:
         assert db.delete_ad(1) is False
         assert db.get_ads_count() == 0
         assert db.search_ads_by_text("test") == []
-        assert (
-            db.search_ads_with_range(range_criteria={"price": {"min": 10000}})
-            == []
-        )
+        assert db.search_ads_with_range(range_criteria={"price": {"min": 10000}}) == []
 
         # Restore connection params
         db._connection_params = original_params

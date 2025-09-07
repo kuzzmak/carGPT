@@ -137,9 +137,7 @@ class Database:
         allowed_columns = AdColumns.get_insertable_columns()
 
         # Filter ad_data to only include allowed columns
-        filtered_data = {
-            k: v for k, v in ad_data.items() if k in allowed_columns
-        }
+        filtered_data = {k: v for k, v in ad_data.items() if k in allowed_columns}
 
         if not filtered_data:
             logger.error("No valid data provided for insertion")
@@ -221,10 +219,9 @@ class Database:
             return self.get_all_ads(limit)
 
         where_clause = " AND ".join(conditions)
-        query = (
-            f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} LIMIT %s;"
-        )
+        query = f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} LIMIT %s;"
         values.append(limit)
+        logger.debug(f"Executing query: {query} with values {values}")
 
         try:
             with self.get_connection() as conn, conn.cursor() as cursor:
@@ -233,9 +230,7 @@ class Database:
 
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [
-                        dict(zip(columns, row, strict=True)) for row in results
-                    ]
+                    return [dict(zip(columns, row, strict=True)) for row in results]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error retrieving ads: {e}")
@@ -259,9 +254,7 @@ class Database:
 
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [
-                        dict(zip(columns, row, strict=True)) for row in results
-                    ]
+                    return [dict(zip(columns, row, strict=True)) for row in results]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error retrieving ads: {e}")
@@ -406,9 +399,7 @@ class Database:
 
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [
-                        dict(zip(columns, row, strict=True)) for row in results
-                    ]
+                    return [dict(zip(columns, row, strict=True)) for row in results]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error searching ads: {e}")
@@ -472,7 +463,9 @@ class Database:
             where_clause = " AND ".join(conditions)
             query = f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} ORDER BY insertion_time DESC LIMIT %s;"
         else:
-            query = f"SELECT * FROM {ADS_TABLE_NAME} ORDER BY insertion_time DESC LIMIT %s;"
+            query = (
+                f"SELECT * FROM {ADS_TABLE_NAME} ORDER BY insertion_time DESC LIMIT %s;"
+            )
 
         values.append(limit)
 
@@ -483,12 +476,126 @@ class Database:
 
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [
-                        dict(zip(columns, row, strict=True)) for row in results
-                    ]
+                    return [dict(zip(columns, row, strict=True)) for row in results]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error searching ads with range: {e}")
+            return []
+
+    def search_ads(
+        self,
+        exact_criteria: dict[str, Any] | None = None,
+        range_criteria: dict[str, dict[str, Any]] | None = None,
+        text_search: dict[str, str] | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Search ads with support for exact matches, range filtering, and text search.
+
+        Args:
+            exact_criteria: Dictionary of exact match criteria (e.g., {'make': 'BMW'})
+            range_criteria: Dictionary of range criteria in format:
+                {
+                    'column_name': {'min': min_value, 'max': max_value}
+                }
+                Either 'min' or 'max' can be omitted for one-sided ranges.
+            text_search: Dictionary for text search in format:
+                {
+                    'term': 'search_term',
+                    'fields': ['field1', 'field2']  # optional, defaults to make, model, location, type
+                }
+            limit: Maximum number of results to return
+
+        Returns:
+            List of dictionaries containing matching ad data
+
+        Example:
+            # Search for BMW cars with price between 10000 and 50000
+            db.search_ads(
+                exact_criteria={'make': 'BMW'},
+                range_criteria={'price': {'min': 10000, 'max': 50000}}
+            )
+        """
+        # Supported numerical columns for range searches
+        numerical_columns = set(AdColumns.get_numerical_columns())
+
+        conditions = []
+        values = []
+
+        # Add exact match criteria
+        if exact_criteria:
+            for key, value in exact_criteria.items():
+                if value is not None:
+                    conditions.append(f"{key} = %s")
+                    values.append(value)
+
+        # Add range criteria
+        if range_criteria:
+            for column, range_params in range_criteria.items():
+                if column not in numerical_columns:
+                    logger.warning(
+                        f"Column '{column}' does not support range searches. Skipping."
+                    )
+                    continue
+
+                min_value = range_params.get("min")
+                max_value = range_params.get("max")
+
+                if min_value is not None:
+                    conditions.append(f"{column} >= %s")
+                    values.append(min_value)
+
+                if max_value is not None:
+                    conditions.append(f"{column} <= %s")
+                    values.append(max_value)
+
+        # Add text search criteria
+        if text_search:
+            search_term = text_search.get("term")
+            if search_term:
+                search_fields = text_search.get(
+                    "fields",
+                    [
+                        AdColumns.MAKE,
+                        AdColumns.MODEL,
+                        AdColumns.LOCATION,
+                        AdColumns.TYPE,
+                    ],
+                )
+
+                text_conditions = []
+                search_pattern = f"%{search_term}%"
+
+                for field in search_fields:
+                    text_conditions.append(f"LOWER({field}) LIKE LOWER(%s)")
+                    values.append(search_pattern)
+
+                if text_conditions:
+                    conditions.append(f"({' OR '.join(text_conditions)})")
+
+        # Build final query
+        if conditions:
+            where_clause = " AND ".join(conditions)
+            query = f"SELECT * FROM {ADS_TABLE_NAME} WHERE {where_clause} ORDER BY insertion_time DESC LIMIT %s;"
+        else:
+            query = (
+                f"SELECT * FROM {ADS_TABLE_NAME} ORDER BY insertion_time DESC LIMIT %s;"
+            )
+
+        values.append(limit)
+
+        logger.debug(f"Executing query: {query} with values {values}")
+
+        try:
+            with self.get_connection() as conn, conn.cursor() as cursor:
+                cursor.execute(query, values)
+                results = cursor.fetchall()
+
+                if results:
+                    columns = [desc[0] for desc in cursor.description]
+                    return [dict(zip(columns, row, strict=True)) for row in results]
+                return []
+        except psycopg2.Error as e:
+            logger.error(f"Error searching ads: {e}")
             return []
 
     @property
