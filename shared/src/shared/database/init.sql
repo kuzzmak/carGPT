@@ -27,6 +27,7 @@ GRANT ALL ON SCHEMA public TO :db_user;
 -- Create the ads table with citext for case-insensitive text columns
 CREATE TABLE IF NOT EXISTS ads (
     id SERIAL PRIMARY KEY,
+    url TEXT,
     insertion_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     date_created TIMESTAMP NOT NULL,
     price NUMERIC(10, 2),

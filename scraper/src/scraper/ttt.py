@@ -390,6 +390,7 @@ DataDirectory /tmp/tor_data_selenium
         )
         logger.info(f"Navigating to link: {link}")
         article_info = extract_article_info(self.driver)
+        article_info["url"] = link
         logger.info(f"Extracted article info: {pprint.pformat(article_info)}")
         self.save_article(article_info)
 

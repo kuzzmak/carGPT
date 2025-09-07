@@ -7,6 +7,7 @@ class AdColumns(StrEnum):
     # System columns (not directly insertable)
     ID = "id"
     INSERTION_TIME = "insertion_time"
+    URL = "url"
 
     # User data columns
     DATE_CREATED = "date_created"
