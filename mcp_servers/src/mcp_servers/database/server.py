@@ -16,7 +16,7 @@ setup_logging(logging_config_path)
 logger = get_logger("mcp_servers")
 
 # Create server
-mcp = FastMCP("Database Server")
+mcp = FastMCP("Database Server", port=8001)
 
 # Initialize database connection
 try:
