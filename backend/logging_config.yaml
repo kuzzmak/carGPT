@@ -9,3 +9,7 @@ loggers:
     level: DEBUG
     handlers: [console, file]
     propagate: false
+  database:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: false
