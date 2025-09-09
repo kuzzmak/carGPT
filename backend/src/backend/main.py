@@ -1,14 +1,19 @@
-import json
 from datetime import datetime
+from uuid import uuid4
 
+from agents import Agent, Runner
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from openai.types.responses import ResponseTextDeltaEvent
 from pydantic import BaseModel, Field
 
+from backend.constants import SYSTEM_PROMPT
 from backend.paths import BACKEND_DIR
 
 from shared.database import Database
 from shared.logging_config import get_logger, setup_logging
+from shared.session import PostgreSQLSession
 
 # Setup main backend logging with base configuration extension
 setup_logging(BACKEND_DIR / "logging_config.yaml")
@@ -30,6 +35,25 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize database: {e}")
     raise
+
+
+def initialize_agent():
+    """Initialize the AI agent with MCP server connection."""
+    try:
+        agent = Agent(
+            name="CarGPT Assistant",
+            instructions=SYSTEM_PROMPT,
+            model="gpt-4o",
+        )
+        logger.info("AI agent initialized successfully")
+        return agent
+    except Exception as e:
+        err = "Failed to initialize AI agent"
+        logger.error(f"{err}: {e}")
+        raise Exception(err) from e
+
+
+agent = initialize_agent()
 
 
 # Pydantic models for request/response
@@ -127,7 +151,25 @@ class StatsResponse(BaseModel):
     avg_price: float | None
 
 
-# API Endpoints
+class ChatMessage(BaseModel):
+    """Model for chat message."""
+
+    role: str = Field(..., description="Message role: 'user' or 'assistant'")
+    content: str = Field(..., description="Message content")
+
+
+class ChatRequest(BaseModel):
+    """Model for chat request."""
+
+    session_id: str = Field(..., description="Session ID for the chat")
+    message: str = Field(..., description="User message")
+
+
+class ChatResponse(BaseModel):
+    """Model for chat response."""
+
+    response: str = Field(..., description="Assistant response")
+    timestamp: datetime = Field(default_factory=datetime.now)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -316,6 +358,53 @@ async def get_database_stats():
         )
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")
+        raise HTTPException(
+            status_code=500, detail="Internal server error"
+        ) from e
+
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    """Handle chat requests with AI assistant functionality using agents library."""
+    try:
+        # Initialize session
+        session = PostgreSQLSession(
+            session_id=request.session_id,
+            connection_string="postgresql://adsuser:pass@localhost:5432/ads_db",
+        )
+
+        logger.debug(f"Session ID: {request.session_id}")
+        logger.debug(f"User message: {request.message}")
+
+        async def generate_response():
+            """Generate streaming response from agent."""
+            result = Runner.run_streamed(
+                agent, request.message, session=session
+            )
+            current_text = ""
+            async for event in result.stream_events():
+                if event.type == "raw_response_event" and isinstance(
+                    event.data, ResponseTextDeltaEvent
+                ):
+                    delta = event.data.delta
+                    current_text += delta
+                    # Escape newlines for SSE format, but preserve them in the data
+                    escaped_delta = delta.replace("\n", "\\n").replace(
+                        "\r", "\\r"
+                    )
+                    yield f"data: {escaped_delta}\n\n"
+
+        return StreamingResponse(
+            generate_response(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # Disable nginx buffering
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(
             status_code=500, detail="Internal server error"
         ) from e
