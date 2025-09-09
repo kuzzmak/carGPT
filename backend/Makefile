@@ -1,6 +1,6 @@
 .PHONY: start-backend
 start-backend:
-	uv run uvicorn src.backend.main:app --host 0.0.0.0 --port 8000 --reload
+	uv run --env-file ../.env uvicorn src.backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 .PHONY: health-check
 health-check:
