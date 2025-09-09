@@ -3,10 +3,10 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from mcp_servers.paths import MCP_SERVERS_DIR
+
 from shared.database import AdColumns, Database
 from shared.logging_config import get_logger, setup_logging
-
-from mcp_servers.paths import MCP_SERVERS_DIR
 
 # TODO: add resources, prompts? to the server
 
