@@ -104,6 +104,25 @@ class Database:
     # ----------------------
     # Generic Table Utilities
     # ----------------------
+    def install_extension(self, extension_name: str) -> bool:
+        """Install a PostgreSQL extension if it doesn't already exist."""
+        if not self._validate_identifier(extension_name):
+            raise ValueError(f"Invalid extension name: {extension_name}")
+
+        install_extension_query = f"CREATE EXTENSION IF NOT EXISTS {extension_name};"
+
+        try:
+            with self.get_connection() as conn, conn.cursor() as cursor:
+                cursor.execute(install_extension_query)
+                conn.commit()
+                logger.info(
+                    f"Extension '{extension_name}' installed successfully or already exists!"
+                )
+                return True
+        except psycopg2.Error as e:
+            logger.error(f"Error installing extension '{extension_name}': {e}")
+            return False
+
     def create_table(self, table_name: str, columns_definition_sql: str) -> bool:
         """Create a table with the provided column definition if it doesn't exist."""
         table = self._ensure_table_name(table_name)

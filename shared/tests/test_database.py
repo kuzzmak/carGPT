@@ -51,6 +51,8 @@ def database(
     # Create database instance
     db = Database(**postgres_container)
 
+    db.install_extension("citext")
+
     # Create ads table
     db.create_ads_table()
 
