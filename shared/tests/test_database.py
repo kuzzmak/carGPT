@@ -72,6 +72,7 @@ def database(
 def sample_ad_data() -> dict[str, Any]:
     """Fixture providing sample ad data for testing."""
     return {
+        AdColumns.URL: "http://example.com/ad/123",
         AdColumns.DATE_CREATED: datetime(2024, 1, 15, 12, 30, tzinfo=UTC),
         AdColumns.PRICE: 25000.50,
         AdColumns.LOCATION: "Zagreb",
