@@ -7,17 +7,18 @@ from agents.mcp import (
     MCPServerStreamableHttp,
     MCPServerStreamableHttpParams,
 )
-from agents.model_settings import ModelSettings
 from agents.memory.session import SessionABC
+from agents.model_settings import ModelSettings
+from openai import AsyncOpenAI
 
 from backend.paths import BACKEND_DIR
-from openai import AsyncOpenAI
+
 from shared.logging_config import get_logger, setup_logging
 from shared.session import PostgreSQLSession
 
-
 setup_logging(BACKEND_DIR / "logging_config.yaml")
 logger = get_logger("backend")
+
 
 async def run_gemini(mcp_server: MCPServer, session: SessionABC):
     logger.info("Running with Gemini 2.5")
@@ -28,7 +29,9 @@ async def run_gemini(mcp_server: MCPServer, session: SessionABC):
     agent = Agent(
         name="Assistant",
         instructions="Use the tools to answer the questions.",
-        model=OpenAIChatCompletionsModel(model=MODEL_NAME, openai_client=client),
+        model=OpenAIChatCompletionsModel(
+            model=MODEL_NAME, openai_client=client
+        ),
         mcp_servers=[mcp_server],
     )
     message = (
