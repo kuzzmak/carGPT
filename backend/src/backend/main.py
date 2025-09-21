@@ -1,10 +1,16 @@
+from contextlib import asynccontextmanager
 from datetime import datetime
 import os
 
 from agents import Agent, Runner
-from fastapi import FastAPI, HTTPException, Query
+from agents.mcp import (
+    MCPServerStreamableHttp,
+    MCPServerStreamableHttpParams,
+)
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+
 from openai.types.responses import ResponseTextDeltaEvent
 
 from backend.constants import CHAT_MODEL, SYSTEM_PROMPT
@@ -26,13 +32,29 @@ from shared.session import PostgreSQLSession
 setup_logging(BACKEND_DIR / "logging_config.yaml")
 logger = get_logger("backend")
 
+ads_db_mcp_server: MCPServerStreamableHttp
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global ads_db_mcp_server
+    ads_db_mcp_server = await initialize_mcp_server()
+
+    yield
+
+    await ads_db_mcp_server.cleanup()
+    logger.info("MCP server connection closed")
+
+
 app = FastAPI(
     title="CarGPT Backend API",
     description="REST API for car ads data",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan
 )
+
 
 try:
     db = Database()
@@ -42,13 +64,33 @@ except Exception as e:
     raise
 
 
-def initialize_agent():
+async def initialize_mcp_server():
+    """Initialize the MCP server connection."""
+    try:
+        params = MCPServerStreamableHttpParams(
+            url=os.environ["CARGPT_ADS_DB_MCP_SERVER_URL"]
+        )
+        ads_db_mcp_server = MCPServerStreamableHttp(
+            params=params,
+            name="carGPT Ads Database",
+        )
+        await ads_db_mcp_server.connect()
+        logger.info("MCP server initialized successfully")
+        return ads_db_mcp_server
+    except Exception as e:
+        err = "Failed to initialize MCP server"
+        logger.error(f"{err}: {e}")
+        raise Exception(err) from e
+
+
+def get_agent():
     """Initialize the AI agent with MCP server connection."""
     try:
         agent = Agent(
             name="CarGPT Assistant",
             instructions=SYSTEM_PROMPT,
             model=CHAT_MODEL,
+            mcp_servers=[ads_db_mcp_server],
         )
         logger.info("AI agent initialized successfully")
         return agent
@@ -56,9 +98,6 @@ def initialize_agent():
         err = "Failed to initialize AI agent"
         logger.error(f"{err}: {e}")
         raise Exception(err) from e
-
-
-agent = initialize_agent()
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -265,7 +304,7 @@ def get_session(session_id: str) -> PostgreSQLSession:
 
 
 @app.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, agent: Agent = Depends(get_agent)):
     try:
         session = get_session(request.session_id)
 
