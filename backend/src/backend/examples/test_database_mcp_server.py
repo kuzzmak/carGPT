@@ -1,4 +1,5 @@
 import asyncio
+import os
 from uuid import uuid4
 
 from agents import Agent, OpenAIChatCompletionsModel, Runner
@@ -78,10 +79,10 @@ async def main():
         session_id=session_id,
         connection_string="postgresql://adsuser:pass@localhost:5432/ads_db",
     )
-    params = MCPServerStreamableHttpParams(url="http://localhost:8001/mcp")
+    params = MCPServerStreamableHttpParams(url=os.environ["CARGPT_ADS_DB_MCP_SERVER_URL"])
     ads_db_mcp_server = MCPServerStreamableHttp(
         params=params,
-        name="car-database-read-server",
+        name="carGPT Ads Database",
     )
 
     try:

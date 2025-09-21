@@ -1,3 +1,4 @@
+import os
 import sys
 from typing import Any
 
@@ -15,10 +16,8 @@ logging_config_path = MCP_SERVERS_DIR / "logging_config.yaml"
 setup_logging(logging_config_path)
 logger = get_logger("mcp_servers")
 
-# Create server
-mcp = FastMCP("Database Server", port=8001)
+mcp = FastMCP("Database Server", port=int(os.environ["ADS_DB_MCP_SERVER_PORT"]))
 
-# Initialize database connection
 try:
     db = Database()
     db.create_ads_table()  # Ensure table exists
