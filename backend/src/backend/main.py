@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import uuid4
+import os
 
 from agents import Agent, Runner
 from fastapi import FastAPI, HTTPException, Query
@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from openai.types.responses import ResponseTextDeltaEvent
 from pydantic import BaseModel, Field
 
-from backend.constants import SYSTEM_PROMPT
+from backend.constants import CHAT_MODEL, SYSTEM_PROMPT
 from backend.paths import BACKEND_DIR
 
 from shared.database import Database
@@ -19,7 +19,6 @@ from shared.session import PostgreSQLSession
 setup_logging(BACKEND_DIR / "logging_config.yaml")
 logger = get_logger("backend")
 
-# Initialize FastAPI app
 app = FastAPI(
     title="CarGPT Backend API",
     description="REST API for car ads data",
@@ -28,7 +27,6 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Initialize database connection
 try:
     db = Database()
     logger.info("Database connection initialized successfully")
@@ -43,7 +41,7 @@ def initialize_agent():
         agent = Agent(
             name="CarGPT Assistant",
             instructions=SYSTEM_PROMPT,
-            model="gpt-4o",
+            model=CHAT_MODEL,
         )
         logger.info("AI agent initialized successfully")
         return agent
@@ -363,21 +361,27 @@ async def get_database_stats():
         ) from e
 
 
+def get_session(session_id: str) -> PostgreSQLSession:
+    user = os.environ["CARGPT_DB_USER"]
+    password = os.environ["CARGPT_DB_PASSWORD"]
+    host = os.environ["CARGPT_DB_HOST"]
+    port = os.environ["CARGPT_DB_PORT"]
+    db = os.environ["CARGPT_DB_NAME"]
+    return PostgreSQLSession(
+        session_id=session_id,
+        connection_string=f"postgresql://{user}:{password}@{host}:{port}/{db}",
+    )
+
+
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    """Handle chat requests with AI assistant functionality using agents library."""
     try:
-        # Initialize session
-        session = PostgreSQLSession(
-            session_id=request.session_id,
-            connection_string="postgresql://adsuser:pass@localhost:5432/ads_db",
-        )
+        session = get_session(request.session_id)
 
         logger.debug(f"Session ID: {request.session_id}")
         logger.debug(f"User message: {request.message}")
 
         async def generate_response():
-            """Generate streaming response from agent."""
             result = Runner.run_streamed(
                 agent, request.message, session=session
             )
@@ -400,7 +404,7 @@ async def chat(request: ChatRequest):
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",  # Disable nginx buffering
+                "X-Accel-Buffering": "no",
             },
         )
     except Exception as e:
@@ -410,10 +414,9 @@ async def chat(request: ChatRequest):
         ) from e
 
 
-# CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this properly for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
