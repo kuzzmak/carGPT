@@ -79,7 +79,9 @@ async def main():
         session_id=session_id,
         connection_string="postgresql://adsuser:pass@localhost:5432/ads_db",
     )
-    params = MCPServerStreamableHttpParams(url=os.environ["CARGPT_ADS_DB_MCP_SERVER_URL"])
+    params = MCPServerStreamableHttpParams(
+        url=os.environ["CARGPT_ADS_DB_MCP_SERVER_URL"]
+    )
     ads_db_mcp_server = MCPServerStreamableHttp(
         params=params,
         name="carGPT Ads Database",

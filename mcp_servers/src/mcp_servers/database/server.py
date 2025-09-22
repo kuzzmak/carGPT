@@ -16,7 +16,9 @@ logging_config_path = MCP_SERVERS_DIR / "logging_config.yaml"
 setup_logging(logging_config_path)
 logger = get_logger("mcp_servers")
 
-mcp = FastMCP("Database Server", port=int(os.environ["ADS_DB_MCP_SERVER_PORT"]))
+mcp = FastMCP(
+    "Database Server", port=int(os.environ["ADS_DB_MCP_SERVER_PORT"])
+)
 
 try:
     db = Database()
