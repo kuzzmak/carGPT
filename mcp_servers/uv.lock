@@ -293,6 +293,7 @@ name = "mcp-servers"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "httpx" },
     { name = "mcp" },
     { name = "shared" },
 ]
@@ -305,6 +306,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.24.0" },
     { name = "mcp", specifier = ">=1.13.1" },
     { name = "shared", editable = "../shared" },
 ]

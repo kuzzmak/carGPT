@@ -28,22 +28,27 @@ from shared.database import Database
 from shared.logging_config import get_logger, setup_logging
 from shared.session import PostgreSQLSession
 
+REQUEST_TIMEOUT_SECONDS = int(os.environ.get("REQUEST_TIMEOUT_SECONDS", "60"))
+
 # Setup main backend logging with base configuration extension
 setup_logging(BACKEND_DIR / "logging_config.yaml")
 logger = get_logger("backend")
 
 ads_db_mcp_server: MCPServerStreamableHttp
+perplexity_mcp_server: MCPServerStreamableHttp
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global ads_db_mcp_server
-    ads_db_mcp_server = await initialize_mcp_server()
+    global ads_db_mcp_server, perplexity_mcp_server
+    ads_db_mcp_server = await initialize_ads_db_mcp_server()
+    perplexity_mcp_server = await initialize_perplexity_mcp_server()
 
     yield
 
     await ads_db_mcp_server.cleanup()
-    logger.info("MCP server connection closed")
+    await perplexity_mcp_server.cleanup()
+    logger.info("MCP server connections closed")
 
 
 app = FastAPI(
@@ -52,7 +57,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -64,35 +69,58 @@ except Exception as e:
     raise
 
 
-async def initialize_mcp_server():
-    """Initialize the MCP server connection."""
+async def initialize_ads_db_mcp_server():
+    """Initialize the Ads Database MCP server connection."""
     try:
         params = MCPServerStreamableHttpParams(
-            url=os.environ["CARGPT_ADS_DB_MCP_SERVER_URL"]
+            url=os.environ["CARGPT_ADS_DB_MCP_SERVER_URL"],
+            timeout=REQUEST_TIMEOUT_SECONDS,
         )
         ads_db_mcp_server = MCPServerStreamableHttp(
             params=params,
             name="carGPT Ads Database",
+            client_session_timeout_seconds=REQUEST_TIMEOUT_SECONDS,
         )
         await ads_db_mcp_server.connect()
-        logger.info("MCP server initialized successfully")
+        logger.info("Ads Database MCP server initialized successfully")
         return ads_db_mcp_server
     except Exception as e:
-        err = "Failed to initialize MCP server"
+        err = "Failed to initialize Ads Database MCP server"
+        logger.error(f"{err}: {e}")
+        raise Exception(err) from e
+
+
+async def initialize_perplexity_mcp_server():
+    """Initialize the Perplexity MCP server connection."""
+    try:
+        params = MCPServerStreamableHttpParams(
+            url=os.environ["CARGPT_PERPLEXITY_MCP_SERVER_URL"],
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        perplexity_mcp_server = MCPServerStreamableHttp(
+            params=params,
+            name="Perplexity Search Server",
+            client_session_timeout_seconds=REQUEST_TIMEOUT_SECONDS,
+        )
+        await perplexity_mcp_server.connect()
+        logger.info("Perplexity MCP server initialized successfully")
+        return perplexity_mcp_server
+    except Exception as e:
+        err = "Failed to initialize Perplexity MCP server"
         logger.error(f"{err}: {e}")
         raise Exception(err) from e
 
 
 def get_agent():
-    """Initialize the AI agent with MCP server connection."""
+    """Initialize the AI agent with MCP server connections."""
     try:
         agent = Agent(
             name="CarGPT Assistant",
             instructions=SYSTEM_PROMPT,
             model=CHAT_MODEL,
-            mcp_servers=[ads_db_mcp_server],
+            mcp_servers=[ads_db_mcp_server, perplexity_mcp_server],
         )
-        logger.info("AI agent initialized successfully")
+        logger.info("AI agent initialized successfully with both MCP servers")
         return agent
     except Exception as e:
         err = "Failed to initialize AI agent"
