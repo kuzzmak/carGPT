@@ -6,8 +6,10 @@ from typing import Any
 import psycopg2
 import pytest
 from testcontainers.postgres import PostgresContainer
+import uuid
 
 from shared.database import AdColumns, Database
+from shared.database.utils import ADS_TABLE_COLUMNS_SQL, CONVERSATIONS_TABLE_COLUMNS_SQL
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -53,8 +55,9 @@ def database(
 
     db.install_extension("citext")
 
-    # Create ads table
-    db.create_ads_table()
+    # Create tables
+    db.create_table("ads", ADS_TABLE_COLUMNS_SQL)
+    db.create_table("conversations", CONVERSATIONS_TABLE_COLUMNS_SQL)
 
     yield db
 
@@ -62,6 +65,7 @@ def database(
     try:
         with db.get_connection() as conn, conn.cursor() as cursor:
             cursor.execute("DROP TABLE IF EXISTS ads CASCADE;")
+            cursor.execute("DROP TABLE IF EXISTS conversations CASCADE;")
             conn.commit()
     except Exception as e:
         logger.error(f"Error cleaning up database: {e}")
@@ -210,6 +214,191 @@ class TestDatabase:
         assert "invalid_column" not in ad
         assert "another_invalid" not in ad
         assert ad[AdColumns.MAKE] == sample_ad_data_minimal[AdColumns.MAKE]
+
+    def test_upsert_new_conversation(self, database):
+        """Test upserting a new conversation record (should insert)."""
+        # Prepare conversation data
+        session_id = str(uuid.uuid4())
+        user_id = str(uuid.uuid4())
+
+        conversation_data = {
+            "session_id": session_id,
+            "user_id": user_id,
+        }
+
+        # Upsert new conversation
+        conversation_id = database.upsert(
+            conversation_data,
+            table_name="conversations",
+            conflict_columns=["session_id"],
+            returning="id",
+        )
+
+        assert conversation_id is not None
+        assert isinstance(conversation_id, int)
+        assert conversation_id > 0
+
+        # Verify record was inserted
+        with database.get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM conversations WHERE id = %s;", (conversation_id,)
+            )
+            result = cursor.fetchone()
+            assert result is not None
+            columns = [desc[0] for desc in cursor.description]
+            conversation = dict(zip(columns, result))
+            assert conversation["session_id"] == session_id
+            assert conversation["user_id"] == user_id
+
+    def test_upsert_existing_conversation(self, database):
+        """Test upserting an existing conversation record (should do nothing)."""
+        session_id = str(uuid.uuid4())
+        user_id_1 = str(uuid.uuid4())
+        user_id_2 = str(uuid.uuid4())
+
+        # First upsert
+        conversation_id_1 = database.upsert(
+            {"session_id": session_id, "user_id": user_id_1},
+            table_name="conversations",
+            conflict_columns=["session_id"],
+            returning="id",
+        )
+        assert conversation_id_1 is not None
+
+        # Second upsert with same session_id but different user_id (should do nothing)
+        conversation_id_2 = database.upsert(
+            {"session_id": session_id, "user_id": user_id_2},
+            table_name="conversations",
+            conflict_columns=["session_id"],
+            returning="id",
+        )
+
+        # Should return None because no new record was inserted
+        assert conversation_id_2 is None
+
+        # Verify only one record exists and it has the original user_id
+        with database.get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) FROM conversations WHERE session_id = %s;",
+                (session_id,),
+            )
+            count = cursor.fetchone()[0]
+            assert count == 1
+
+            cursor.execute(
+                "SELECT user_id FROM conversations WHERE session_id = %s;",
+                (session_id,),
+            )
+            stored_user_id = cursor.fetchone()[0]
+            assert (
+                stored_user_id == user_id_1
+            )  # Should still be the original user_id
+
+    def test_upsert_conversation_use_case(self, database):
+        """Test upsert for the conversation tracking use case."""
+        session_id = str(uuid.uuid4())
+        user_id_1 = str(uuid.uuid4())
+        user_id_2 = str(uuid.uuid4())
+
+        # First upsert - should insert new conversation
+        result_1 = database.upsert(
+            {"session_id": session_id, "user_id": user_id_1},
+            table_name="conversations",
+            conflict_columns=["session_id"],
+            returning="id",
+        )
+        assert result_1 is not None
+
+        # Second upsert with same session_id - should do nothing
+        result_2 = database.upsert(
+            {"session_id": session_id, "user_id": user_id_2},
+            table_name="conversations",
+            conflict_columns=["session_id"],
+            returning="id",
+        )
+        assert result_2 is None
+
+        # Verify original record is unchanged
+        with database.get_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT user_id FROM conversations WHERE session_id = %s;",
+                (session_id,),
+            )
+            stored_user_id = cursor.fetchone()[0]
+            assert stored_user_id == user_id_1  # Should still be original user
+
+    def test_upsert_without_conflict_columns(self, database):
+        """Test that upsert raises ValueError when conflict_columns is not provided."""
+        with pytest.raises(ValueError, match="conflict_columns must be specified"):
+            database.upsert({"session_id": "test"}, table_name="conversations")
+
+    def test_upsert_with_empty_conflict_columns(self, database):
+        """Test that upsert raises ValueError when conflict_columns is empty."""
+        with pytest.raises(ValueError, match="conflict_columns must be specified"):
+            database.upsert(
+                {"session_id": "test"}, table_name="conversations", conflict_columns=[]
+            )
+
+    def test_upsert_with_invalid_column_names(self, database):
+        """Test that upsert validates column names properly."""
+        # Test invalid record column
+        with pytest.raises(ValueError, match="Invalid column name"):
+            database.upsert(
+                {"invalid'; DROP TABLE conversations; --": "malicious"},
+                table_name="conversations",
+                conflict_columns=["session_id"],
+            )
+
+        # Test invalid conflict column
+        with pytest.raises(ValueError, match="Invalid conflict column"):
+            database.upsert(
+                {"session_id": "valid-uuid"},
+                table_name="conversations",
+                conflict_columns=["invalid'; DROP TABLE conversations; --"],
+            )
+
+        # Test invalid returning column
+        with pytest.raises(ValueError, match="Invalid returning column"):
+            database.upsert(
+                {"session_id": "valid-uuid"},
+                table_name="conversations",
+                conflict_columns=["session_id"],
+                returning="invalid'; DROP TABLE conversations; --",
+            )
+
+    def test_upsert_with_nonexistent_table(self, database):
+        """Test upsert behavior with non-existent table."""
+        result = database.upsert(
+            {"session_id": "test"},
+            table_name="nonexistent_table",
+            conflict_columns=["session_id"],
+        )
+        # Should return None due to error
+        assert result is None
+
+    def test_upsert_with_nonexistent_conflict_column(self, database):
+        """Test upsert behavior with non-existent conflict column."""
+        result = database.upsert(
+            {"session_id": "valid-uuid"},
+            table_name="conversations",
+            conflict_columns=["nonexistent_column"],
+        )
+        # Should return None due to error
+        assert result is None
+
+    def test_upsert_returning_different_column(self, database):
+        """Test upsert with different returning column."""
+        session_id = str(uuid.uuid4())
+
+        result = database.upsert(
+            {"session_id": session_id, "user_id": str(uuid.uuid4())},
+            table_name="conversations",
+            conflict_columns=["session_id"],
+            returning="session_id",
+        )
+
+        assert result is not None
+        assert result == session_id
 
     def test_get_ad_by_id(self, database, sample_ad_data):
         """Test retrieving an ad by ID."""

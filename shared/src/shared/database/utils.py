@@ -1,0 +1,54 @@
+from shared.database.columns import AdColumns, ConversationsColumns
+
+
+CONVERSATIONS_TABLE_COLUMNS_SQL = f"""
+    {ConversationsColumns.ID} SERIAL PRIMARY KEY,
+    {ConversationsColumns.SESSION_ID} UUID UNIQUE NOT NULL,
+    {ConversationsColumns.USER_ID} UUID NOT NULL,
+    {ConversationsColumns.CREATED_AT} TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    {ConversationsColumns.UPDATED_AT} TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+"""
+
+ADS_TABLE_COLUMNS_SQL = f"""
+    {AdColumns.ID} SERIAL PRIMARY KEY,
+    {AdColumns.URL} TEXT,
+    {AdColumns.INSERTION_TIME} TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    {AdColumns.DATE_CREATED} TIMESTAMP NOT NULL,
+    {AdColumns.PRICE} NUMERIC(10, 2),
+    {AdColumns.LOCATION} CITEXT,
+    {AdColumns.MAKE} CITEXT,
+    {AdColumns.MODEL} CITEXT,
+    {AdColumns.TYPE} CITEXT,
+    {AdColumns.CHASSIS_NUMBER} CITEXT,
+    {AdColumns.MANUFACTURE_YEAR} INT,
+    {AdColumns.MODEL_YEAR} INT,
+    {AdColumns.MILEAGE} INT,
+    {AdColumns.ENGINE} CITEXT,
+    {AdColumns.POWER} INT,
+    {AdColumns.DISPLACEMENT} INT,
+    {AdColumns.TRANSMISSION} CITEXT,
+    {AdColumns.CONDITION} CITEXT,
+    {AdColumns.OWNER} CITEXT,
+    {AdColumns.SERVICE_BOOK} BOOLEAN,
+    {AdColumns.GARAGED} BOOLEAN,
+    {AdColumns.IN_TRAFFIC_SINCE} INT,
+    {AdColumns.FIRST_REGISTRATION_IN_CROATIA} INT,
+    {AdColumns.REGISTERED_UNTIL} VARCHAR(20),
+    {AdColumns.FUEL_CONSUMPTION} VARCHAR(20),
+    {AdColumns.ECO_CATEGORY} VARCHAR(20),
+    {AdColumns.NUMBER_OF_GEARS} VARCHAR(20),
+    {AdColumns.WARRANTY} VARCHAR(20),
+    {AdColumns.AVERAGE_CO2_EMISSION} VARCHAR(20),
+    {AdColumns.VIDEO_CALL_VIEWING} BOOLEAN,
+    {AdColumns.GAS} BOOLEAN,
+    {AdColumns.AUTO_WARRANTY} VARCHAR(20),
+    {AdColumns.NUMBER_OF_DOORS} INT,
+    {AdColumns.CHASSIS_TYPE} CITEXT,
+    {AdColumns.NUMBER_OF_SEATS} INT,
+    {AdColumns.DRIVE_TYPE} CITEXT,
+    {AdColumns.COLOR} CITEXT,
+    {AdColumns.METALIC_COLOR} BOOLEAN,
+    {AdColumns.SUSPENSION} CITEXT,
+    {AdColumns.TIRE_SIZE} VARCHAR(20),
+    {AdColumns.INTERNAL_CODE} VARCHAR(50)
+"""

@@ -82,11 +82,17 @@ CREATE INDEX IF NOT EXISTS idx_ads_manufacture_year ON ads(manufacture_year);
 CREATE INDEX IF NOT EXISTS idx_ads_insertion_time ON ads(insertion_time);
 CREATE INDEX IF NOT EXISTS idx_ads_make_model ON ads(make, model);
 
-COMMENT ON TABLE ads IS 'Table for storing car advertisement data with case-insensitive text fields';
-COMMENT ON COLUMN ads.insertion_time IS 'Timestamp when the ad was inserted into the database';
-COMMENT ON COLUMN ads.date_created IS 'Original creation date of the advertisement';
-COMMENT ON COLUMN ads.chassis_number IS 'Vehicle Identification Number (VIN) - case insensitive';
-COMMENT ON COLUMN ads.metalic_color IS 'Boolean indicating if the car has metallic paint';
-COMMENT ON COLUMN ads.make IS 'Car manufacturer - case insensitive using CITEXT';
-COMMENT ON COLUMN ads.model IS 'Car model - case insensitive using CITEXT';
-COMMENT ON COLUMN ads.location IS 'Location of the car - case insensitive using CITEXT';
+CREATE TABLE IF NOT EXISTS conversations (
+    id SERIAL PRIMARY KEY,
+    session_id UUID UNIQUE NOT NULL,
+    user_id UUID,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Grant table permissions to the application user
+GRANT ALL PRIVILEGES ON TABLE conversations TO :db_user;
+GRANT USAGE, SELECT ON SEQUENCE conversations_id_seq TO :db_user;
+
+CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);

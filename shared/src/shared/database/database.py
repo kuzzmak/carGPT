@@ -6,6 +6,7 @@ from typing import Any
 import psycopg2
 
 from shared.database import AdColumns
+from shared.database.utils import ADS_TABLE_COLUMNS_SQL
 from shared.logging_config import get_logger
 
 # Set up logging
@@ -198,6 +199,52 @@ class Database:
                 return ret_val
         except psycopg2.Error as e:
             logger.error(f"Error inserting into '{table}': {e}")
+            return None
+
+    def upsert(
+        self,
+        record: dict[str, Any],
+        table_name: str | None = None,
+        conflict_columns: list[str] | None = None,
+        returning: str = "id",
+    ) -> Any | None:
+        """Insert record or do nothing if conflict occurs on specified columns."""
+        table = self._ensure_table_name(table_name)
+
+        if not conflict_columns:
+            raise ValueError("conflict_columns must be specified for upsert")
+
+        # Validate identifiers
+        for col in record.keys():
+            if not self._validate_identifier(col):
+                raise ValueError(f"Invalid column name: {col}")
+        for col in conflict_columns:
+            if not self._validate_identifier(col):
+                raise ValueError(f"Invalid conflict column: {col}")
+        if returning and not self._validate_identifier(returning):
+            raise ValueError(f"Invalid returning column: {returning}")
+
+        columns = list(record.keys())
+        values = list(record.values())
+        placeholders = ", ".join(["%s"] * len(values))
+        columns_str = ", ".join(columns)
+        conflict_clause = ", ".join(conflict_columns)
+
+        query = f"""
+            INSERT INTO {table} ({columns_str})
+            VALUES ({placeholders})
+            ON CONFLICT ({conflict_clause}) DO NOTHING
+            RETURNING {returning};
+        """
+
+        try:
+            with self.get_connection() as conn, conn.cursor() as cursor:
+                cursor.execute(query, values)
+                result = cursor.fetchone()
+                conn.commit()
+                return result[0] if result else None
+        except psycopg2.Error as e:
+            logger.error(f"Error upserting into '{table}': {e}")
             return None
 
     def get_by_id(
@@ -581,50 +628,7 @@ class Database:
     def create_ads_table(self, table_name: str | None = None) -> bool:
         """Create the 'ads' table with predefined schema (backward compatibility)."""
         table = self._ensure_table_name(table_name)
-        columns_sql = """
-            id SERIAL PRIMARY KEY,
-            url TEXT,
-            insertion_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            date_created TIMESTAMP NOT NULL,
-            price NUMERIC(10, 2),
-            location CITEXT,
-            make CITEXT,
-            model CITEXT,
-            type CITEXT,
-            chassis_number CITEXT,
-            manufacture_year INT,
-            model_year INT,
-            mileage INT,
-            engine CITEXT,
-            power INT,
-            displacement INT,
-            transmission CITEXT,
-            condition CITEXT,
-            owner CITEXT,
-            service_book BOOLEAN,
-            garaged BOOLEAN,
-            in_traffic_since INT,
-            first_registration_in_croatia INT,
-            registered_until VARCHAR(20),
-            fuel_consumption VARCHAR(20),
-            eco_category VARCHAR(20),
-            number_of_gears VARCHAR(20),
-            warranty VARCHAR(20),
-            average_co2_emission VARCHAR(20),
-            video_call_viewing BOOLEAN,
-            gas BOOLEAN,
-            auto_warranty VARCHAR(20),
-            number_of_doors INT,
-            chassis_type CITEXT,
-            number_of_seats INT,
-            drive_type CITEXT,
-            color CITEXT,
-            metalic_color BOOLEAN,
-            suspension CITEXT,
-            tire_size VARCHAR(20),
-            internal_code VARCHAR(50)
-        """
-        return self.create_table(table, columns_sql)
+        return self.create_table(table, ADS_TABLE_COLUMNS_SQL)
 
     def insert_ad(
         self, ad_data: dict[str, Any], table_name: str | None = None
