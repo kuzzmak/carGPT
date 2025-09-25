@@ -1,53 +1,63 @@
-from enum import StrEnum
+from enum import auto, StrEnum
+
+
+class ConversationsColumns(StrEnum):
+    """String enum for available conversation columns in the database."""
+
+    ID = auto()
+    SESSION_ID = auto()
+    USER_ID = auto()
+    CREATED_AT = auto()
+    UPDATED_AT = auto()
 
 
 class AdColumns(StrEnum):
     """String enum for available ad columns in the database."""
 
     # System columns (not directly insertable)
-    ID = "id"
-    INSERTION_TIME = "insertion_time"
-    URL = "url"
+    ID = auto()
+    INSERTION_TIME = auto()
+    URL = auto()
 
     # User data columns
-    DATE_CREATED = "date_created"
-    PRICE = "price"
-    LOCATION = "location"
-    MAKE = "make"
-    MODEL = "model"
-    TYPE = "type"
-    CHASSIS_NUMBER = "chassis_number"
-    MANUFACTURE_YEAR = "manufacture_year"
-    MODEL_YEAR = "model_year"
-    MILEAGE = "mileage"
-    ENGINE = "engine"
-    POWER = "power"
-    DISPLACEMENT = "displacement"
-    TRANSMISSION = "transmission"
-    CONDITION = "condition"
-    OWNER = "owner"
-    SERVICE_BOOK = "service_book"
-    GARAGED = "garaged"
-    IN_TRAFFIC_SINCE = "in_traffic_since"
-    FIRST_REGISTRATION_IN_CROATIA = "first_registration_in_croatia"
-    REGISTERED_UNTIL = "registered_until"
-    FUEL_CONSUMPTION = "fuel_consumption"
-    ECO_CATEGORY = "eco_category"
-    NUMBER_OF_GEARS = "number_of_gears"
-    WARRANTY = "warranty"
-    AVERAGE_CO2_EMISSION = "average_co2_emission"
-    VIDEO_CALL_VIEWING = "video_call_viewing"
-    GAS = "gas"
-    AUTO_WARRANTY = "auto_warranty"
-    NUMBER_OF_DOORS = "number_of_doors"
-    CHASSIS_TYPE = "chassis_type"
-    NUMBER_OF_SEATS = "number_of_seats"
-    DRIVE_TYPE = "drive_type"
-    COLOR = "color"
-    METALIC_COLOR = "metalic_color"
-    SUSPENSION = "suspension"
-    TIRE_SIZE = "tire_size"
-    INTERNAL_CODE = "internal_code"
+    DATE_CREATED = auto()
+    PRICE = auto()
+    LOCATION = auto()
+    MAKE = auto()
+    MODEL = auto()
+    TYPE = auto()
+    CHASSIS_NUMBER = auto()
+    MANUFACTURE_YEAR = auto()
+    MODEL_YEAR = auto()
+    MILEAGE = auto()
+    ENGINE = auto()
+    POWER = auto()
+    DISPLACEMENT = auto()
+    TRANSMISSION = auto()
+    CONDITION = auto()
+    OWNER = auto()
+    SERVICE_BOOK = auto()
+    GARAGED = auto()
+    IN_TRAFFIC_SINCE = auto()
+    FIRST_REGISTRATION_IN_CROATIA = auto()
+    REGISTERED_UNTIL = auto()
+    FUEL_CONSUMPTION = auto()
+    ECO_CATEGORY = auto()
+    NUMBER_OF_GEARS = auto()
+    WARRANTY = auto()
+    AVERAGE_CO2_EMISSION = auto()
+    VIDEO_CALL_VIEWING = auto()
+    GAS = auto()
+    AUTO_WARRANTY = auto()
+    NUMBER_OF_DOORS = auto()
+    CHASSIS_TYPE = auto()
+    NUMBER_OF_SEATS = auto()
+    DRIVE_TYPE = auto()
+    COLOR = auto()
+    METALIC_COLOR = auto()
+    SUSPENSION = auto()
+    TIRE_SIZE = auto()
+    INTERNAL_CODE = auto()
 
     @classmethod
     def get_insertable_columns(cls):
