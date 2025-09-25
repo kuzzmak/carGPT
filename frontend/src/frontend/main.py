@@ -1,4 +1,5 @@
 import datetime
+import os
 from uuid import uuid4
 
 import requests
@@ -6,8 +7,9 @@ import streamlit as st
 from htbuilder import div, styles
 from htbuilder.units import rem
 
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = os.environ["BACKEND_URL"]
 CHAT_ENDPOINT = f"{BACKEND_URL}/chat"
+USER_ID = os.environ["USER_ID"]
 
 
 # Dummy fetch from a database for past conversations
@@ -56,20 +58,7 @@ def fetch_conversations():
         },
     ]
 
-
-def load_conversation_by_id(session_id: str, conversations_by_id: dict):
-    conv = conversations_by_id.get(session_id)
-    if not conv:
-        return
-    # Switch current chat session to the selected conversation
-    st.session_state.session_id = conv["session_id"]
-    st.session_state.messages = conv["messages"].copy()
-    # Clear any pending initial interactions
-    st.session_state.pop("initial_question", None)
-    st.session_state.pop("selected_suggestion", None)
-
-
-st.set_page_config(page_title="Streamlit AI assistant", page_icon="✨")
+st.set_page_config(page_title="carGPT", page_icon="🚗")
 
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid4())
@@ -184,7 +173,7 @@ title_row = st.container(
 with title_row:
     st.title(
         # ":material/cognition_2: Streamlit AI assistant", anchor=False, width="stretch"
-        "Streamlit AI assistant",
+        "carGPT assistant",
         anchor=False,
         width="stretch",
     )
