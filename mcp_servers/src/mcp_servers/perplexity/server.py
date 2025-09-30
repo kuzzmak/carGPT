@@ -9,7 +9,6 @@ from mcp_servers.paths import MCP_SERVERS_DIR
 
 from shared.logging_config import get_logger, setup_logging
 
-
 # Setup MCP-specific logging with base configuration extension
 logging_config_path = MCP_SERVERS_DIR / "logging_config.yaml"
 setup_logging(logging_config_path)
