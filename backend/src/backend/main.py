@@ -1,22 +1,20 @@
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
-import os
 
 from agents import Agent, Runner
-from agents.mcp import (
-    MCPServerStreamableHttp,
-    MCPServerStreamableHttpParams,
-)
+from agents.mcp import MCPServerStreamableHttp, MCPServerStreamableHttpParams
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-
 from openai.types.responses import ResponseTextDeltaEvent
 
 from backend.constants import CHAT_MODEL, SYSTEM_PROMPT
 from backend.models import (
     AdResponse,
+    ChatMessage,
     ChatRequest,
+    Conversation,
     HealthResponse,
     SearchCriteria,
     StatsResponse,
@@ -28,6 +26,7 @@ from shared.database import Database
 from shared.logging_config import get_logger, setup_logging
 from shared.session import PostgreSQLSession
 
+CONVERSATIONS_TABLE_NAME = os.environ["CONVERSATIONS_TABLE_NAME"]
 REQUEST_TIMEOUT_SECONDS = int(os.environ.get("REQUEST_TIMEOUT_SECONDS", "60"))
 
 # Setup main backend logging with base configuration extension
@@ -41,13 +40,13 @@ perplexity_mcp_server: MCPServerStreamableHttp
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global ads_db_mcp_server, perplexity_mcp_server
-    ads_db_mcp_server = await initialize_ads_db_mcp_server()
-    perplexity_mcp_server = await initialize_perplexity_mcp_server()
+    # ads_db_mcp_server = await initialize_ads_db_mcp_server()
+    # perplexity_mcp_server = await initialize_perplexity_mcp_server()
 
     yield
 
-    await ads_db_mcp_server.cleanup()
-    await perplexity_mcp_server.cleanup()
+    # await ads_db_mcp_server.cleanup()
+    # await perplexity_mcp_server.cleanup()
     logger.info("MCP server connections closed")
 
 
@@ -118,7 +117,7 @@ def get_agent():
             name="CarGPT Assistant",
             instructions=SYSTEM_PROMPT,
             model=CHAT_MODEL,
-            mcp_servers=[ads_db_mcp_server, perplexity_mcp_server],
+            # mcp_servers=[ads_db_mcp_server, perplexity_mcp_server],
         )
         logger.info("AI agent initialized successfully with both MCP servers")
         return agent
@@ -331,12 +330,99 @@ def get_session(session_id: str) -> PostgreSQLSession:
     )
 
 
+def save_conversation(session_id: str, user_id: str):
+    try:
+        record = {
+            "session_id": session_id,
+            "user_id": user_id,
+        }
+        id = db.upsert(record, "conversations", ["session_id"])
+        if id:
+            logger.debug(f"Saved conversation metadata with ID: {id}")
+        else:
+            logger.debug(
+                "Conversation metadata already exists, no new record created"
+            )
+    except Exception:
+        logger.error("Failed to save conversation metadata")
+
+
+def get_session_messages(session_id: str):
+    try:
+        messages = db.get_by_criteria(
+            {"session_id": session_id},
+            table_name="agent_messages",
+        )
+        if messages:
+            logger.debug(
+                f"Fetched {len(messages)} messages for session {session_id}"
+            )
+        return messages if messages else []
+    except Exception:
+        logger.error(f"Failed to fetch messages for session {session_id}")
+        return []
+
+
+@app.get("/conversations/{user_id}", response_model=list[Conversation])
+async def get_user_conversations(user_id: str):
+    """Get all conversations for a specific user."""
+    try:
+        sessions = db.get_by_criteria(
+            {"user_id": user_id},
+            table_name=CONVERSATIONS_TABLE_NAME,
+            order_by="updated_at DESC",
+        )
+        if not len(sessions):
+            return []
+
+        conversations = []
+        for session in sessions:
+            session_messages = get_session_messages(session["session_id"])
+            chat_messages = [
+                ChatMessage(
+                    role=msg["message_data"]["role"],
+                    content=msg["message_data"]["content"]
+                    if msg["message_data"]["role"] == "user"
+                    else msg["message_data"]["content"][0]["text"],
+                )
+                for msg in session_messages
+            ]
+
+            logger.debug(
+                f"Session {session['session_id']} has {len(chat_messages)} messages"
+            )
+
+            conversations.append(
+                Conversation(
+                    conversation_id=session["session_id"],
+                    messages=chat_messages,
+                )
+            )
+
+        logger.debug(
+            f"Total conversations fetched for user {user_id}: {len(conversations)}"
+        )
+
+        return conversations
+
+    except Exception as e:
+        logger.error(f"Error fetching conversations for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail="Internal server error"
+        ) from e
+
+
 @app.post("/chat")
 async def chat(request: ChatRequest, agent: Agent = Depends(get_agent)):
-    try:
-        session = get_session(request.session_id)
+    session_id = request.session_id
+    user_id = request.user_id
 
-        logger.debug(f"Session ID: {request.session_id}")
+    save_conversation(session_id, user_id)
+
+    try:
+        session = get_session(session_id)
+
+        logger.debug(f"Session ID: {session_id}")
         logger.debug(f"User message: {request.message}")
 
         async def generate_response():
@@ -385,5 +471,9 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "main:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ["BACKEND_PORT"]),
+        reload=True,
+        log_level="info",
     )

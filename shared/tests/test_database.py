@@ -290,9 +290,7 @@ class TestDatabase:
                 (session_id,),
             )
             stored_user_id = cursor.fetchone()[0]
-            assert (
-                stored_user_id == user_id_1
-            )  # Should still be the original user_id
+            assert stored_user_id == user_id_1  # Should still be the original user_id
 
     def test_upsert_conversation_use_case(self, database):
         """Test upsert for the conversation tracking use case."""
@@ -482,6 +480,96 @@ class TestDatabase:
 
         ads = database.get_ads_by_criteria({})
         assert len(ads) == 1
+
+    def test_get_ads_by_criteria_with_order_by(self, database, sample_ad_data):
+        """Test getting ads by criteria with order_by parameter."""
+        # Insert test ads with different prices and makes
+        ad1_data = sample_ad_data.copy()
+        ad1_data[AdColumns.MAKE] = "BMW"
+        ad1_data[AdColumns.PRICE] = 25000.00
+        ad1_data[AdColumns.MODEL] = "X5"
+        database.insert_ad(ad1_data)
+
+        ad2_data = sample_ad_data.copy()
+        ad2_data[AdColumns.MAKE] = "BMW"
+        ad2_data[AdColumns.PRICE] = 30000.00
+        ad2_data[AdColumns.MODEL] = "X3"
+        database.insert_ad(ad2_data)
+
+        ad3_data = sample_ad_data.copy()
+        ad3_data[AdColumns.MAKE] = "BMW"
+        ad3_data[AdColumns.PRICE] = 20000.00
+        ad3_data[AdColumns.MODEL] = "X1"
+        database.insert_ad(ad3_data)
+
+        # Test ordering by price ASC
+        bmw_ads_price_asc = database.get_ads_by_criteria(
+            {AdColumns.MAKE: "BMW"}, order_by="price ASC"
+        )
+        assert len(bmw_ads_price_asc) == 3
+        assert bmw_ads_price_asc[0][AdColumns.PRICE] == 20000.00  # X1
+        assert bmw_ads_price_asc[1][AdColumns.PRICE] == 25000.00  # X5
+        assert bmw_ads_price_asc[2][AdColumns.PRICE] == 30000.00  # X3
+
+        # Test ordering by price DESC
+        bmw_ads_price_desc = database.get_ads_by_criteria(
+            {AdColumns.MAKE: "BMW"}, order_by="price DESC"
+        )
+        assert len(bmw_ads_price_desc) == 3
+        assert bmw_ads_price_desc[0][AdColumns.PRICE] == 30000.00  # X3
+        assert bmw_ads_price_desc[1][AdColumns.PRICE] == 25000.00  # X5
+        assert bmw_ads_price_desc[2][AdColumns.PRICE] == 20000.00  # X1
+
+        # Test ordering by model (alphabetical)
+        bmw_ads_model_asc = database.get_ads_by_criteria(
+            {AdColumns.MAKE: "BMW"}, order_by="model ASC"
+        )
+        assert len(bmw_ads_model_asc) == 3
+        assert bmw_ads_model_asc[0][AdColumns.MODEL] == "X1"
+        assert bmw_ads_model_asc[1][AdColumns.MODEL] == "X3"
+        assert bmw_ads_model_asc[2][AdColumns.MODEL] == "X5"
+
+    def test_get_ads_by_criteria_with_invalid_order_by(self, database, sample_ad_data):
+        """Test getting ads by criteria with invalid order_by parameter."""
+        database.insert_ad(sample_ad_data)
+
+        # Test with non-existent column name (database error, returns empty list)
+        # This doesn't raise ValueError because column name format is valid
+        result = database.get_ads_by_criteria(
+            {AdColumns.MAKE: "BMW"}, order_by="invalid_column"
+        )
+        assert result == []  # Returns empty list due to database error
+
+        # Test with SQL injection attempt (should raise ValueError due to invalid format)
+        with pytest.raises(ValueError, match="Invalid ORDER BY clause"):
+            database.get_ads_by_criteria(
+                {AdColumns.MAKE: "BMW"}, order_by="price; DROP TABLE ads;"
+            )
+
+        # Test with malformed ORDER BY clause (should raise ValueError)
+        with pytest.raises(ValueError, match="Invalid ORDER BY clause"):
+            database.get_ads_by_criteria(
+                {AdColumns.MAKE: "BMW"}, order_by="price INVALID_DIRECTION"
+            )
+
+    def test_get_ads_by_criteria_empty_criteria_with_order_by(
+        self, database, sample_ad_data
+    ):
+        """Test getting ads with empty criteria but with order_by parameter."""
+        # Insert multiple ads
+        ad1_data = sample_ad_data.copy()
+        ad1_data[AdColumns.PRICE] = 25000.00
+        database.insert_ad(ad1_data)
+
+        ad2_data = sample_ad_data.copy()
+        ad2_data[AdColumns.PRICE] = 15000.00
+        database.insert_ad(ad2_data)
+
+        # Empty criteria should delegate to get_all with order_by
+        ads = database.get_ads_by_criteria({}, order_by="price ASC")
+        assert len(ads) == 2
+        assert ads[0][AdColumns.PRICE] == 15000.00
+        assert ads[1][AdColumns.PRICE] == 25000.00
 
     def test_update_ad(self, database, sample_ad_data):
         """Test updating an existing ad."""
@@ -1414,6 +1502,89 @@ class TestDatabase:
         assert results[0]["model"] == "Third"
         assert results[1]["model"] == "Second"
         assert results[2]["model"] == "First"
+
+    def test_get_by_criteria_generic_with_order_by(self, database, sample_ad_data):
+        """Test the generic get_by_criteria method with order_by parameter."""
+        # Use the ads-specific insert method since the generic method
+        # needs to handle required fields like date_created
+
+        # Insert test records using the insert_ad method
+        record1 = sample_ad_data.copy()
+        record1.update(
+            {
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X5",
+                AdColumns.PRICE: 25000.00,
+                AdColumns.MILEAGE: 50000,
+            }
+        )
+        record2 = sample_ad_data.copy()
+        record2.update(
+            {
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X3",
+                AdColumns.PRICE: 30000.00,
+                AdColumns.MILEAGE: 40000,
+            }
+        )
+        record3 = sample_ad_data.copy()
+        record3.update(
+            {
+                AdColumns.MAKE: "BMW",
+                AdColumns.MODEL: "X1",
+                AdColumns.PRICE: 20000.00,
+                AdColumns.MILEAGE: 60000,
+            }
+        )
+
+        # Insert using ads-specific method
+        id1 = database.insert_ad(record1)
+        id2 = database.insert_ad(record2)
+        id3 = database.insert_ad(record3)
+
+        assert all([id1, id2, id3])
+
+        # Test generic get_by_criteria with order_by
+        results_price_asc = database.get_by_criteria(
+            {"make": "BMW"}, order_by="price ASC"
+        )
+        assert len(results_price_asc) == 3
+        assert results_price_asc[0]["price"] == 20000.00  # X1
+        assert results_price_asc[1]["price"] == 25000.00  # X5
+        assert results_price_asc[2]["price"] == 30000.00  # X3
+
+        # Test ordering by mileage DESC
+        results_mileage_desc = database.get_by_criteria(
+            {"make": "BMW"}, order_by="mileage DESC"
+        )
+        assert len(results_mileage_desc) == 3
+        assert results_mileage_desc[0]["mileage"] == 60000  # X1
+        assert results_mileage_desc[1]["mileage"] == 50000  # X5
+        assert results_mileage_desc[2]["mileage"] == 40000  # X3
+
+        # Test multi-column ordering
+        results_multi = database.get_by_criteria(
+            {"make": "BMW"}, order_by="price ASC, model DESC"
+        )
+        assert len(results_multi) == 3
+        # Should be ordered by price first, then by model descending
+        assert results_multi[0]["price"] == 20000.00  # X1 (lowest price)
+
+    def test_get_by_criteria_generic_invalid_order_by(self, database):
+        """Test the generic get_by_criteria method with invalid order_by parameter."""
+        # Test with non-existent column name (database error, returns empty list)
+        result = database.get_by_criteria({"make": "BMW"}, order_by="invalid_column")
+        assert result == []  # Returns empty list due to database error
+
+        # Test with SQL injection attempt (should raise ValueError due to invalid format)
+        with pytest.raises(ValueError, match="Invalid ORDER BY clause"):
+            database.get_by_criteria({"make": "BMW"}, order_by="price; DROP TABLE ads;")
+
+        # Test with malformed order by (should raise ValueError due to invalid format)
+        with pytest.raises(ValueError, match="Invalid ORDER BY clause"):
+            database.get_by_criteria(
+                {"make": "BMW"}, order_by="price INVALID_DIRECTION"
+            )
 
 
 class TestDatabaseErrorHandling:

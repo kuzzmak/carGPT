@@ -107,6 +107,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     """Model for chat request."""
 
+    user_id: str = Field(..., description="User ID")
     session_id: str = Field(..., description="Session ID for the chat")
     message: str = Field(..., description="User message")
 
@@ -116,3 +117,12 @@ class ChatResponse(BaseModel):
 
     response: str = Field(..., description="Assistant response")
     timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class Conversation(BaseModel):
+    conversation_id: str = Field(
+        ..., description="Conversation ID for the conversation"
+    )
+    messages: list[ChatMessage] = Field(
+        ..., description="List of chat messages"
+    )

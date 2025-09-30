@@ -12,51 +12,62 @@ CHAT_ENDPOINT = f"{BACKEND_URL}/chat"
 USER_ID = os.environ["USER_ID"]
 
 
-# Dummy fetch from a database for past conversations
-# Each conversation is identified by session_id and includes a small message history
-# In a real app, replace this with an actual database query.
 def fetch_conversations():
-    return [
-        {
-            "session_id": "11111111-1111-1111-1111-111111111111",
-            "title": "Car options research",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "Help me choose between Tesla Model 3 and BMW i4.",
-                },
-                {
-                    "role": "assistant",
-                    "content": "Both are great EVs. What matters most to you: range, price, or features?",
-                },
-            ],
-        },
-        {
-            "session_id": "22222222-2222-2222-2222-222222222222",
-            "title": "Maintenance schedule",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "What's the maintenance schedule for a 2018 Toyota Corolla?",
-                },
-                {
-                    "role": "assistant",
-                    "content": "Here’s a general schedule: oil change every 5k-10k miles, tire rotation, brake checks, and fluid inspections.",
-                },
-            ],
-        },
-        {
-            "session_id": "33333333-3333-3333-3333-333333333333",
-            "title": "Financing options",
-            "messages": [
-                {"role": "user", "content": "Explain car financing terms"},
-                {
-                    "role": "assistant",
-                    "content": "APR, term length, down payment, and residual value are key. What budget and term are you considering?",
-                },
-            ],
-        },
-    ]
+    """Fetch user conversations from the backend API."""
+    try:
+        conversations_endpoint = f"{BACKEND_URL}/conversations/{USER_ID}"
+        response = requests.get(conversations_endpoint)
+
+        if response.status_code == 200:
+            conversations_data = response.json()
+
+            # Convert backend response to frontend format
+            conversations = []
+            for conv in conversations_data:
+                # Extract conversation data based on your backend's Conversation model
+                session_id = conv.get("conversation_id", "")
+                messages = conv.get("messages", [])
+
+                # Create a title from the first user message or use session_id
+                title = f"Chat {session_id[:8]}..."
+                if messages:
+                    # Try to get the first user message for the title
+                    first_user_msg = next(
+                        (msg for msg in messages if msg.get("role") == "user"), None
+                    )
+                    if first_user_msg:
+                        content = first_user_msg.get("content", "")
+                        title = content[:30] + "..." if len(content) > 30 else content
+
+                # Convert message format if needed
+                formatted_messages = []
+                for msg in messages:
+                    formatted_messages.append(
+                        {"role": msg.get("role", ""), "content": msg.get("content", "")}
+                    )
+
+                conversations.append(
+                    {
+                        "session_id": session_id,
+                        "title": title,
+                        "messages": formatted_messages,
+                        "message_count": len(formatted_messages),
+                    }
+                )
+
+            return conversations
+
+        else:
+            st.error(f"Failed to fetch conversations: {response.status_code}")
+            return []
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"Connection error while fetching conversations: {e}")
+        return []
+    except Exception as e:
+        st.error(f"Unexpected error while fetching conversations: {e}")
+        return []
+
 
 st.set_page_config(page_title="carGPT", page_icon="🚗")
 
@@ -124,7 +135,11 @@ def get_response(prompt):
     """Stream response from backend chat endpoint."""
     try:
         # Prepare the chat request
-        chat_request = {"session_id": st.session_state.session_id, "message": prompt}
+        chat_request = {
+            "user_id": USER_ID,
+            "session_id": st.session_state.session_id,
+            "message": prompt,
+        }
 
         # Make streaming request to backend
         response = requests.post(

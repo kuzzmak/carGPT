@@ -265,11 +265,15 @@ class Database:
             return None
 
     def get_by_criteria(
-        self, criteria: dict[str, Any], table_name: str | None = None, limit: int = 100
+        self,
+        criteria: dict[str, Any],
+        table_name: str | None = None,
+        limit: int = 100,
+        order_by: str | None = None,
     ) -> list[dict[str, Any]]:
         table = self._ensure_table_name(table_name)
         if not criteria:
-            return self.get_all(table_name=table, limit=limit)
+            return self.get_all(table_name=table, limit=limit, order_by=order_by)
 
         conditions: list[str] = []
         values: list[Any] = []
@@ -282,10 +286,17 @@ class Database:
                 values.append(value)
 
         if not conditions:
-            return self.get_all(table_name=table, limit=limit)
+            return self.get_all(table_name=table, limit=limit, order_by=order_by)
 
         where_clause = " AND ".join(conditions)
-        query = f"SELECT * FROM {table} WHERE {where_clause} LIMIT %s;"
+
+        if order_by is not None:
+            if not self._validate_order_by(order_by):
+                raise ValueError(f"Invalid ORDER BY clause: {order_by}")
+            query = f"SELECT * FROM {table} WHERE {where_clause} ORDER BY {order_by} LIMIT %s;"
+        else:
+            query = f"SELECT * FROM {table} WHERE {where_clause} LIMIT %s;"
+
         values.append(limit)
         logger.debug(f"Executing query: {query} with values {values}")
 
@@ -653,9 +664,15 @@ class Database:
         return self.get_by_id(ad_id, table_name=table_name)
 
     def get_ads_by_criteria(
-        self, criteria: dict[str, Any], limit: int = 100, table_name: str | None = None
+        self,
+        criteria: dict[str, Any],
+        limit: int = 100,
+        table_name: str | None = None,
+        order_by: str | None = None,
     ) -> list[dict[str, Any]]:
-        return self.get_by_criteria(criteria, table_name=table_name, limit=limit)
+        return self.get_by_criteria(
+            criteria, table_name=table_name, limit=limit, order_by=order_by
+        )
 
     def get_all_ads(
         self, limit: int = 100, table_name: str | None = None
