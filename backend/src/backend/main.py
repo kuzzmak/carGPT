@@ -332,19 +332,36 @@ def get_session(session_id: str) -> PostgreSQLSession:
 
 def save_conversation(session_id: str, user_id: str):
     try:
+        # Try to insert a new conversation
         record = {
             "session_id": session_id,
             "user_id": user_id,
         }
-        id = db.upsert(record, "conversations", ["session_id"])
+        id = db.insert(record, table_name="conversations")
         if id:
-            logger.debug(f"Saved conversation metadata with ID: {id}")
+            logger.debug(f"Created new conversation with ID: {id}")
         else:
-            logger.debug(
-                "Conversation metadata already exists, no new record created"
+            # Insert failed, update existing conversation's timestamp
+            update_data = {"updated_at": datetime.now()}
+            existing_conversations = db.get_by_criteria(
+                {"session_id": session_id}, 
+                table_name="conversations"
             )
-    except Exception:
-        logger.error("Failed to save conversation metadata")
+            if existing_conversations:
+                conversation_id = existing_conversations[0]["id"]
+                success = db.update_by_id(
+                    conversation_id, 
+                    update_data, 
+                    table_name="conversations"
+                )
+                if success:
+                    logger.debug(f"Updated conversation {session_id} timestamp")
+                else:
+                    logger.warning(f"Failed to update conversation {session_id} timestamp")
+            else:
+                logger.warning(f"Could not find existing conversation {session_id}")
+    except Exception as e:
+        logger.error(f"Failed to save conversation metadata: {e}")
 
 
 def get_session_messages(session_id: str):
