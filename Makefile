@@ -86,8 +86,7 @@ clean: ## Remove unused Docker resources
 rebuild: ## Rebuild and restart all services
 	$(COMPOSE_CMD) down
 	$(COMPOSE_CMD) build --no-cache
-	$(COMPOSE_CMD) up -d
-	@echo "🔄 Services rebuilt and restarted"
+	@echo "🔄 Services rebuilt"
 
 # Production helpers
 prod-deploy: ## Deploy in production mode
