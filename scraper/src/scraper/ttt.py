@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Tor + Firefox Selenium scraper for Njuškalo cars page
-"""
-
-import logging
 import os
 import pprint
 import random
@@ -24,11 +18,11 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from scraper.paths import SCRAPER_DIR
-
 from shared.database import Database
 from shared.logging_config import get_logger, setup_logging
 from shared.translations import TRANSLATIONS
+
+from scraper.paths import SCRAPER_DIR
 
 PAGE_TIMEOUT = 30
 
@@ -47,9 +41,6 @@ class TorFirefoxScraper:
         self.tor_browser_path = tor_browser_path
         self.tor_executable_path = os.path.join(
             tor_browser_path, "Browser/start-tor-browser"
-        )
-        self.tor_binary_path = os.path.join(
-            tor_browser_path, "Browser/TorBrowser/Tor/tor"
         )
         self.tor_process = None
         self.driver = None
@@ -525,7 +516,7 @@ def get_ad_details(
     left_column: list[WebElement], right_column: list[WebElement]
 ) -> dict[str, str]:
     ad_details = {}
-    for prop_name, prop_value in zip(left_column, right_column):
+    for prop_name, prop_value in zip(left_column, right_column, strict=True):
         prop_name = prop_name.find_element(
             By.CLASS_NAME, "ClassifiedDetailBasicDetails-textWrapContainer"
         ).text
@@ -641,8 +632,8 @@ def extract_article_info(driver: WebDriver) -> dict[str, Any]:
         except Exception as e:
             logger.debug(f"Error extracting ad duration: {e}")
 
-        ad_details = transform_data(ad_details)
-        return ad_details
+        return transform_data(ad_details)
+
     except Exception as e:
         logger.error(f"Error extracting article info: {e}")
         return {}
