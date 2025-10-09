@@ -27,7 +27,7 @@ GRANT ALL ON SCHEMA public TO :db_user;
 -- Create the ads table with citext for case-insensitive text columns
 CREATE TABLE IF NOT EXISTS ads (
     id SERIAL PRIMARY KEY,
-    url TEXT,
+    url TEXT UNIQUE NOT NULL,
     insertion_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     date_created TIMESTAMP NOT NULL,
     price NUMERIC(10, 2),
@@ -74,6 +74,7 @@ GRANT ALL PRIVILEGES ON TABLE ads TO :db_user;
 GRANT USAGE, SELECT ON SEQUENCE ads_id_seq TO :db_user;
 
 -- Create indexes for common search fields
+CREATE INDEX IF NOT EXISTS idx_ads_url ON ads(url);
 CREATE INDEX IF NOT EXISTS idx_ads_make ON ads(make);
 CREATE INDEX IF NOT EXISTS idx_ads_model ON ads(model);
 CREATE INDEX IF NOT EXISTS idx_ads_location ON ads(location);
