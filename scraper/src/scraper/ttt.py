@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import pprint
 import random
 import re
@@ -40,10 +41,13 @@ class TorFirefoxScraper:
             9150  # Tor Browser uses 9150, standalone Tor uses 9050
         )
         self.tor_control_port = 9151
+        self.url_base = "https://www.njuskalo.hr/auti"
 
         self._download_tor_if_needed()
 
         self.tor_executable_path = str(TOR_PATH)
+
+        self.last_saved_ad_timestamp_path = SCRAPER_DIR / "last_saved_ad_timestamp.txt"
 
     def _download_tor_if_needed(self):
         if TOR_PATH.exists():
@@ -62,7 +66,6 @@ class TorFirefoxScraper:
             raise RuntimeError("Failed to download Tor Browser")
         
         logger.info("Tor Browser downloaded successfully")
-
 
     def start_tor(self):
         """Start Tor browser process"""
@@ -175,9 +178,9 @@ DataDirectory /tmp/tor_data_selenium
             if self.test_tor_connection():
                 logger.info("Standalone Tor started successfully")
                 return True
-            else:
-                logger.error("Standalone Tor failed to start")
-                return False
+
+            logger.error("Standalone Tor failed to start")
+            return False
 
         except Exception as e:
             logger.error(f"Error starting standalone Tor: {e}")
@@ -290,18 +293,14 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(f"Error setting up Firefox with Tor: {e}")
             return False
 
-    def scrape_njuskalo_cars(
-        self, url="https://www.njuskalo.hr/auti", num_pages=1
-    ):
+    def scrape_njuskalo_cars(self, num_pages=1):
         """Scrape the Njuškalo cars page(s)"""
         if not self.driver:
             logger.error("WebDriver not initialized")
             return
 
-        ads_file = open("urls_new.txt", "w")
-
         for page_num in range(1, num_pages + 1):
-            page_url = f"{url}?page={page_num}" if page_num > 1 else url
+            page_url = f"{self.url_base}?page={page_num}" if page_num > 1 else self.url_base
 
             try:
                 logger.info(f"Navigating to page {page_num}: {page_url}")
@@ -348,10 +347,6 @@ DataDirectory /tmp/tor_data_selenium
                 )
 
                 for ad_link in ad_links:
-                    ads_file.write(ad_link + "\n")
-                ads_file.flush()
-
-                for ad_link in ad_links:
                     try:
                         self.handle_link(ad_link)
                         delay = random.randint(1, 10)
@@ -374,8 +369,6 @@ DataDirectory /tmp/tor_data_selenium
             except Exception as e:
                 logger.error(f"Error scraping page {page_num}: {e}")
                 continue
-
-        ads_file.close()
 
     def handle_link(self, link: str) -> None:
         """Handle individual ad link - extract info and save to database"""
@@ -409,6 +402,10 @@ DataDirectory /tmp/tor_data_selenium
                 logger.info(
                     f"Successfully saved article to database with ID: {ad_id}"
                 )
+                with Path(self.last_saved_ad_timestamp_path).open("w") as f:
+                    f.write(datetime.now().isoformat())
+                logger.debug(f"Updated last saved ad timestamp in {self.last_saved_ad_timestamp_path}")
+                
             else:
                 logger.error("Failed to save article to database")
         except Exception as e:
@@ -795,10 +792,7 @@ def main():
         # Scrape Njuškalo cars page
         print("Step 4: Scraping Njuškalo cars page...")
         logger.info("Starting to scrape Njuškalo cars page...")
-        scraper.scrape_njuskalo_cars(
-            url="https://www.njuskalo.hr/auti",
-            num_pages=2,  # Scrape 2 pages
-        )
+        scraper.scrape_njuskalo_cars(num_pages=5)
 
         # Show database statistics
         print("\n✅ Scraping completed!")
