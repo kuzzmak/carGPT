@@ -26,7 +26,7 @@ from shared.database import Database
 from shared.logging_config import get_logger, setup_logging
 from shared.session import PostgreSQLSession
 
-CONVERSATIONS_TABLE_NAME = os.environ["CONVERSATIONS_TABLE_NAME"]
+CONVERSATIONS_TABLE_NAME = os.environ.get("CONVERSATIONS_TABLE_NAME", "conversations")
 REQUEST_TIMEOUT_SECONDS = int(os.environ.get("REQUEST_TIMEOUT_SECONDS", "60"))
 
 # Setup main backend logging with base configuration extension
@@ -303,13 +303,8 @@ async def get_database_stats():
     try:
         total_ads = db.get_ads_count()
 
-        # Get unique makes and models count (this would require additional database methods)
-        # For now, we'll return basic stats
         return StatsResponse(
             total_ads=total_ads,
-            unique_makes=0,  # Placeholder - would need additional DB method
-            unique_models=0,  # Placeholder - would need additional DB method
-            avg_price=None,  # Placeholder - would need additional DB method
         )
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")
@@ -337,7 +332,7 @@ def save_conversation(session_id: str, user_id: str):
             "session_id": session_id,
             "user_id": user_id,
         }
-        id = db.insert(record, table_name="conversations")
+        id = db.insert(record, table_name=CONVERSATIONS_TABLE_NAME)
         if id:
             logger.debug(f"Created new conversation with ID: {id}")
         else:
@@ -345,14 +340,14 @@ def save_conversation(session_id: str, user_id: str):
             update_data = {"updated_at": datetime.now()}
             existing_conversations = db.get_by_criteria(
                 {"session_id": session_id}, 
-                table_name="conversations"
+                table_name=CONVERSATIONS_TABLE_NAME
             )
             if existing_conversations:
                 conversation_id = existing_conversations[0]["id"]
                 success = db.update_by_id(
                     conversation_id, 
                     update_data, 
-                    table_name="conversations"
+                    table_name=CONVERSATIONS_TABLE_NAME
                 )
                 if success:
                     logger.debug(f"Updated conversation {session_id} timestamp")

@@ -92,9 +92,6 @@ class StatsResponse(BaseModel):
     """Database statistics response."""
 
     total_ads: int
-    unique_makes: int
-    unique_models: int
-    avg_price: float | None
 
 
 class ChatMessage(BaseModel):
