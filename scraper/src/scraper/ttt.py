@@ -22,7 +22,7 @@ from shared.database import Database
 from shared.logging_config import get_logger, setup_logging
 from shared.translations import TRANSLATIONS
 
-from scraper.paths import SCRAPER_DIR
+from scraper.paths import SCRAPER_DIR, SCRIPTS_DIR, TOR_PATH
 
 PAGE_TIMEOUT = 30
 
@@ -32,22 +32,37 @@ logger = get_logger("scraper")
 
 
 class TorFirefoxScraper:
-    def __init__(
-        self,
-        database: Database,
-        tor_browser_path="/home/tonkec/Downloads/tor-browser-linux-x86_64-14.5.5/tor-browser",
-    ):
+    def __init__(self, database: Database):
         self.database = database
-        self.tor_browser_path = tor_browser_path
-        self.tor_executable_path = os.path.join(
-            tor_browser_path, "Browser/start-tor-browser"
-        )
         self.tor_process = None
         self.driver = None
         self.tor_proxy_port = (
             9150  # Tor Browser uses 9150, standalone Tor uses 9050
         )
         self.tor_control_port = 9151
+
+        self._download_tor_if_needed()
+
+        self.tor_executable_path = str(TOR_PATH)
+
+    def _download_tor_if_needed(self):
+        if TOR_PATH.exists():
+            logger.debug("Using existing tor instance")
+            return
+        
+        logger.debug("Local tor instance does not exist, downloading...")
+
+        download_script = SCRIPTS_DIR / "download_tor.sh"
+
+        result = subprocess.run(
+            ["bash", str(download_script), str(SCRAPER_DIR / "_browser")],
+            check=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError("Failed to download Tor Browser")
+        
+        logger.info("Tor Browser downloaded successfully")
+
 
     def start_tor(self):
         """Start Tor browser process"""
@@ -74,13 +89,6 @@ class TorFirefoxScraper:
     def start_tor_browser(self):
         """Start Tor Browser"""
         try:
-            # Check if Tor Browser directory exists
-            if not os.path.exists(self.tor_browser_path):
-                logger.error(
-                    f"Tor Browser directory not found: {self.tor_browser_path}"
-                )
-                return False
-
             # Start Tor browser in detached mode
             env = os.environ.copy()
             env["DISPLAY"] = os.environ.get("DISPLAY", ":0")
