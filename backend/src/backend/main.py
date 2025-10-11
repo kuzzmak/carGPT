@@ -26,7 +26,9 @@ from shared.database import Database
 from shared.logging_config import get_logger, setup_logging
 from shared.session import PostgreSQLSession
 
-CONVERSATIONS_TABLE_NAME = os.environ.get("CONVERSATIONS_TABLE_NAME", "conversations")
+CONVERSATIONS_TABLE_NAME = os.environ.get(
+    "CONVERSATIONS_TABLE_NAME", "conversations"
+)
 REQUEST_TIMEOUT_SECONDS = int(os.environ.get("REQUEST_TIMEOUT_SECONDS", "60"))
 
 # Setup main backend logging with base configuration extension
@@ -339,22 +341,27 @@ def save_conversation(session_id: str, user_id: str):
             # Insert failed, update existing conversation's timestamp
             update_data = {"updated_at": datetime.now()}
             existing_conversations = db.get_by_criteria(
-                {"session_id": session_id}, 
-                table_name=CONVERSATIONS_TABLE_NAME
+                {"session_id": session_id}, table_name=CONVERSATIONS_TABLE_NAME
             )
             if existing_conversations:
                 conversation_id = existing_conversations[0]["id"]
                 success = db.update_by_id(
-                    conversation_id, 
-                    update_data, 
-                    table_name=CONVERSATIONS_TABLE_NAME
+                    conversation_id,
+                    update_data,
+                    table_name=CONVERSATIONS_TABLE_NAME,
                 )
                 if success:
-                    logger.debug(f"Updated conversation {session_id} timestamp")
+                    logger.debug(
+                        f"Updated conversation {session_id} timestamp"
+                    )
                 else:
-                    logger.warning(f"Failed to update conversation {session_id} timestamp")
+                    logger.warning(
+                        f"Failed to update conversation {session_id} timestamp"
+                    )
             else:
-                logger.warning(f"Could not find existing conversation {session_id}")
+                logger.warning(
+                    f"Could not find existing conversation {session_id}"
+                )
     except Exception as e:
         logger.error(f"Failed to save conversation metadata: {e}")
 

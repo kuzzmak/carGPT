@@ -1,15 +1,18 @@
+import logging
+import uuid
 from collections.abc import Generator
 from datetime import UTC, datetime
-import logging
 from typing import Any
 
 import psycopg2
 import pytest
 from testcontainers.postgres import PostgresContainer
-import uuid
 
 from shared.database import AdColumns, Database
-from shared.database.utils import ADS_TABLE_COLUMNS_SQL, CONVERSATIONS_TABLE_COLUMNS_SQL
+from shared.database.utils import (
+    ADS_TABLE_COLUMNS_SQL,
+    CONVERSATIONS_TABLE_COLUMNS_SQL,
+)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -241,7 +244,8 @@ class TestDatabase:
         # Verify record was inserted
         with database.get_connection() as conn, conn.cursor() as cursor:
             cursor.execute(
-                "SELECT * FROM conversations WHERE id = %s;", (conversation_id,)
+                "SELECT * FROM conversations WHERE id = %s;",
+                (conversation_id,),
             )
             result = cursor.fetchone()
             assert result is not None
@@ -290,7 +294,9 @@ class TestDatabase:
                 (session_id,),
             )
             stored_user_id = cursor.fetchone()[0]
-            assert stored_user_id == user_id_1  # Should still be the original user_id
+            assert (
+                stored_user_id == user_id_1
+            )  # Should still be the original user_id
 
     def test_upsert_conversation_use_case(self, database):
         """Test upsert for the conversation tracking use case."""
@@ -327,14 +333,20 @@ class TestDatabase:
 
     def test_upsert_without_conflict_columns(self, database):
         """Test that upsert raises ValueError when conflict_columns is not provided."""
-        with pytest.raises(ValueError, match="conflict_columns must be specified"):
+        with pytest.raises(
+            ValueError, match="conflict_columns must be specified"
+        ):
             database.upsert({"session_id": "test"}, table_name="conversations")
 
     def test_upsert_with_empty_conflict_columns(self, database):
         """Test that upsert raises ValueError when conflict_columns is empty."""
-        with pytest.raises(ValueError, match="conflict_columns must be specified"):
+        with pytest.raises(
+            ValueError, match="conflict_columns must be specified"
+        ):
             database.upsert(
-                {"session_id": "test"}, table_name="conversations", conflict_columns=[]
+                {"session_id": "test"},
+                table_name="conversations",
+                conflict_columns=[],
             )
 
     def test_upsert_with_invalid_column_names(self, database):
@@ -471,10 +483,14 @@ class TestDatabase:
         assert x5_ads[0][AdColumns.ID] == ad1_id
 
         # Search with non-existent criteria
-        non_existent = database.get_ads_by_criteria({AdColumns.MAKE: "NonExistentMake"})
+        non_existent = database.get_ads_by_criteria(
+            {AdColumns.MAKE: "NonExistentMake"}
+        )
         assert len(non_existent) == 0
 
-    def test_get_ads_by_criteria_empty_criteria(self, database, sample_ad_data):
+    def test_get_ads_by_criteria_empty_criteria(
+        self, database, sample_ad_data
+    ):
         """Test getting ads with empty criteria."""
         database.insert_ad(sample_ad_data)
 
@@ -529,7 +545,9 @@ class TestDatabase:
         assert bmw_ads_model_asc[1][AdColumns.MODEL] == "X3"
         assert bmw_ads_model_asc[2][AdColumns.MODEL] == "X5"
 
-    def test_get_ads_by_criteria_with_invalid_order_by(self, database, sample_ad_data):
+    def test_get_ads_by_criteria_with_invalid_order_by(
+        self, database, sample_ad_data
+    ):
         """Test getting ads by criteria with invalid order_by parameter."""
         database.insert_ad(sample_ad_data)
 
@@ -713,14 +731,20 @@ class TestDatabase:
         assert len(results) == 1
 
         # Search in transmission field
-        results = database.search_ads_by_text("Auto", fields=[AdColumns.TRANSMISSION])
+        results = database.search_ads_by_text(
+            "Auto", fields=[AdColumns.TRANSMISSION]
+        )
         assert len(results) == 1
 
         # Search in non-matching field
-        results = database.search_ads_by_text("TDI", fields=[AdColumns.TRANSMISSION])
+        results = database.search_ads_by_text(
+            "TDI", fields=[AdColumns.TRANSMISSION]
+        )
         assert len(results) == 0
 
-    def test_search_ads_by_text_case_insensitive(self, database, sample_ad_data):
+    def test_search_ads_by_text_case_insensitive(
+        self, database, sample_ad_data
+    ):
         """Test that text search is case insensitive."""
         ad_data = sample_ad_data.copy()
         ad_data[AdColumns.MAKE] = "BMW"
@@ -962,7 +986,9 @@ class TestDatabase:
         assert len(results) == 2
 
         # Test with None criteria
-        results = database.search_ads_with_range(criteria=None, range_criteria=None)
+        results = database.search_ads_with_range(
+            criteria=None, range_criteria=None
+        )
         assert len(results) == 2
 
     def test_search_ads_with_range_limit(self, database):
@@ -1120,7 +1146,10 @@ class TestDatabase:
 
         # Test multiple exact criteria
         results = database.search_ads(
-            exact_criteria={AdColumns.MAKE: "BMW", AdColumns.LOCATION: "Zagreb"}
+            exact_criteria={
+                AdColumns.MAKE: "BMW",
+                AdColumns.LOCATION: "Zagreb",
+            }
         )
         assert len(results) == 1
         assert results[0]["model"] == "X5"
@@ -1319,7 +1348,10 @@ class TestDatabase:
 
         # Test all three criteria types together
         results = database.search_ads(
-            exact_criteria={AdColumns.MAKE: "BMW", AdColumns.TRANSMISSION: "Automatic"},
+            exact_criteria={
+                AdColumns.MAKE: "BMW",
+                AdColumns.TRANSMISSION: "Automatic",
+            },
             range_criteria={
                 AdColumns.PRICE: {"min": 30000, "max": 40000},
                 AdColumns.MILEAGE: {"max": 50000},
@@ -1381,11 +1413,15 @@ class TestDatabase:
         assert ad_id is not None
 
         # Test exact criteria with no match
-        results = database.search_ads(exact_criteria={AdColumns.MAKE: "NonExistent"})
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "NonExistent"}
+        )
         assert len(results) == 0
 
         # Test range criteria with no match
-        results = database.search_ads(range_criteria={AdColumns.PRICE: {"min": 50000}})
+        results = database.search_ads(
+            range_criteria={AdColumns.PRICE: {"min": 50000}}
+        )
         assert len(results) == 0
 
         # Test text search with no match
@@ -1413,7 +1449,9 @@ class TestDatabase:
             assert ad_id is not None
 
         # Test with limit
-        results = database.search_ads(exact_criteria={AdColumns.MAKE: "BMW"}, limit=3)
+        results = database.search_ads(
+            exact_criteria={AdColumns.MAKE: "BMW"}, limit=3
+        )
         assert len(results) == 3
 
         # Test range search with limit
@@ -1503,7 +1541,9 @@ class TestDatabase:
         assert results[1]["model"] == "Second"
         assert results[2]["model"] == "First"
 
-    def test_get_by_criteria_generic_with_order_by(self, database, sample_ad_data):
+    def test_get_by_criteria_generic_with_order_by(
+        self, database, sample_ad_data
+    ):
         """Test the generic get_by_criteria method with order_by parameter."""
         # Use the ads-specific insert method since the generic method
         # needs to handle required fields like date_created
@@ -1573,12 +1613,16 @@ class TestDatabase:
     def test_get_by_criteria_generic_invalid_order_by(self, database):
         """Test the generic get_by_criteria method with invalid order_by parameter."""
         # Test with non-existent column name (database error, returns empty list)
-        result = database.get_by_criteria({"make": "BMW"}, order_by="invalid_column")
+        result = database.get_by_criteria(
+            {"make": "BMW"}, order_by="invalid_column"
+        )
         assert result == []  # Returns empty list due to database error
 
         # Test with SQL injection attempt (should raise ValueError due to invalid format)
         with pytest.raises(ValueError, match="Invalid ORDER BY clause"):
-            database.get_by_criteria({"make": "BMW"}, order_by="price; DROP TABLE ads;")
+            database.get_by_criteria(
+                {"make": "BMW"}, order_by="price; DROP TABLE ads;"
+            )
 
         # Test with malformed order by (should raise ValueError due to invalid format)
         with pytest.raises(ValueError, match="Invalid ORDER BY clause"):
@@ -1626,7 +1670,10 @@ class TestDatabaseErrorHandling:
         assert db.delete_ad(1) is False
         assert db.get_ads_count() == 0
         assert db.search_ads_by_text("test") == []
-        assert db.search_ads_with_range(range_criteria={"price": {"min": 10000}}) == []
+        assert (
+            db.search_ads_with_range(range_criteria={"price": {"min": 10000}})
+            == []
+        )
 
         # Restore connection params
         db._connection_params = original_params

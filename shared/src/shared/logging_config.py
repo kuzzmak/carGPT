@@ -1,8 +1,8 @@
-from copy import deepcopy
 import logging
 import logging.config
-from pathlib import Path
 import sys
+from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 import yaml

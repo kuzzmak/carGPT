@@ -5,10 +5,10 @@ including database operations, error handling, and edge cases.
 """
 
 import asyncio
+import uuid
 from collections.abc import Generator
 from typing import Any
 from unittest.mock import patch
-import uuid
 
 import psycopg2
 import pytest

@@ -33,17 +33,25 @@ def fetch_conversations():
                 if messages:
                     # Try to get the first user message for the title
                     first_user_msg = next(
-                        (msg for msg in messages if msg.get("role") == "user"), None
+                        (msg for msg in messages if msg.get("role") == "user"),
+                        None,
                     )
                     if first_user_msg:
                         content = first_user_msg.get("content", "")
-                        title = content[:30] + "..." if len(content) > 30 else content
+                        title = (
+                            content[:30] + "..."
+                            if len(content) > 30
+                            else content
+                        )
 
                 # Convert message format if needed
                 formatted_messages = []
                 for msg in messages:
                     formatted_messages.append(
-                        {"role": msg.get("role", ""), "content": msg.get("content", "")}
+                        {
+                            "role": msg.get("role", ""),
+                            "content": msg.get("content", ""),
+                        }
                     )
 
                 conversations.append(
@@ -99,14 +107,18 @@ with st.sidebar:
     for conv in conversations:
         label = conv.get("title") or conv["session_id"]
         if st.button(
-            label, key=f"conv_btn_{conv['session_id']}", use_container_width=True
+            label,
+            key=f"conv_btn_{conv['session_id']}",
+            use_container_width=True,
         ):
             # Load selected conversation without re-fetching the list
             selected_id = conv["session_id"]
             conv_map = st.session_state.conversations_by_id
             if selected_id in conv_map:
                 st.session_state.session_id = selected_id
-                st.session_state.messages = conv_map[selected_id]["messages"].copy()
+                st.session_state.messages = conv_map[selected_id][
+                    "messages"
+                ].copy()
                 st.session_state.pop("initial_question", None)
                 st.session_state.pop("selected_suggestion", None)
             st.rerun()
@@ -194,11 +206,13 @@ with title_row:
     )
 
 user_just_asked_initial_question = (
-    "initial_question" in st.session_state and st.session_state.initial_question
+    "initial_question" in st.session_state
+    and st.session_state.initial_question
 )
 
 user_just_clicked_suggestion = (
-    "selected_suggestion" in st.session_state and st.session_state.selected_suggestion
+    "selected_suggestion" in st.session_state
+    and st.session_state.selected_suggestion
 )
 
 user_first_interaction = (
@@ -235,7 +249,9 @@ if not user_message:
         user_message = SUGGESTIONS[st.session_state.selected_suggestion]
 
 if "prev_question_timestamp" not in st.session_state:
-    st.session_state.prev_question_timestamp = datetime.datetime.fromtimestamp(0)
+    st.session_state.prev_question_timestamp = datetime.datetime.fromtimestamp(
+        0
+    )
 
 # Display chat messages from history as speech bubbles.
 for i, message in enumerate(st.session_state.messages):
@@ -273,4 +289,6 @@ if user_message:
 
     # Add messages to chat history.
     st.session_state.messages.append({"role": "user", "content": user_message})
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.session_state.messages.append(
+        {"role": "assistant", "content": response}
+    )

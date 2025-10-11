@@ -18,7 +18,6 @@ except ImportError:
 
 from agents.memory.session import SessionABC
 
-
 # Use Any for now since the exact type structure is not available
 TResponseInputItem = Any
 

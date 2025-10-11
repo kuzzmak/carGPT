@@ -1,6 +1,6 @@
-from contextlib import contextmanager
 import os
 import re
+from contextlib import contextmanager
 from typing import Any
 
 import psycopg2
@@ -32,7 +32,9 @@ class Database:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, default_table_name: str | None = None, **connection_params):
+    def __init__(
+        self, default_table_name: str | None = None, **connection_params
+    ):
         if self._initialized:
             return
 
@@ -110,7 +112,9 @@ class Database:
         if not self._validate_identifier(extension_name):
             raise ValueError(f"Invalid extension name: {extension_name}")
 
-        install_extension_query = f"CREATE EXTENSION IF NOT EXISTS {extension_name};"
+        install_extension_query = (
+            f"CREATE EXTENSION IF NOT EXISTS {extension_name};"
+        )
 
         try:
             with self.get_connection() as conn, conn.cursor() as cursor:
@@ -124,7 +128,9 @@ class Database:
             logger.error(f"Error installing extension '{extension_name}': {e}")
             return False
 
-    def create_table(self, table_name: str, columns_definition_sql: str) -> bool:
+    def create_table(
+        self, table_name: str, columns_definition_sql: str
+    ) -> bool:
         """Create a table with the provided column definition if it doesn't exist."""
         table = self._ensure_table_name(table_name)
         create_table_query = f"""
@@ -136,7 +142,9 @@ class Database:
             with self.get_connection() as conn, conn.cursor() as cursor:
                 cursor.execute(create_table_query)
                 conn.commit()
-                logger.info(f"Table '{table}' created successfully or already exists!")
+                logger.info(
+                    f"Table '{table}' created successfully or already exists!"
+                )
                 return True
         except psycopg2.Error as e:
             logger.error(f"Error creating table '{table}': {e}")
@@ -165,7 +173,9 @@ class Database:
         table = self._ensure_table_name(table_name)
 
         if allowed_columns is not None:
-            record = {k: v for k, v in record.items() if k in set(allowed_columns)}
+            record = {
+                k: v for k, v in record.items() if k in set(allowed_columns)
+            }
         if not record:
             logger.error("No valid data provided for insertion")
             return None
@@ -273,7 +283,9 @@ class Database:
     ) -> list[dict[str, Any]]:
         table = self._ensure_table_name(table_name)
         if not criteria:
-            return self.get_all(table_name=table, limit=limit, order_by=order_by)
+            return self.get_all(
+                table_name=table, limit=limit, order_by=order_by
+            )
 
         conditions: list[str] = []
         values: list[Any] = []
@@ -286,7 +298,9 @@ class Database:
                 values.append(value)
 
         if not conditions:
-            return self.get_all(table_name=table, limit=limit, order_by=order_by)
+            return self.get_all(
+                table_name=table, limit=limit, order_by=order_by
+            )
 
         where_clause = " AND ".join(conditions)
 
@@ -306,7 +320,9 @@ class Database:
                 results = cursor.fetchall()
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row, strict=True)) for row in results]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error retrieving from '{table}': {e}")
@@ -332,7 +348,9 @@ class Database:
                 results = cursor.fetchall()
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row, strict=True)) for row in results]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error retrieving from '{table}': {e}")
@@ -379,16 +397,22 @@ class Database:
                 rows_affected = cursor.rowcount
                 conn.commit()
                 if rows_affected > 0:
-                    logger.info(f"Record {record_id} in '{table}' updated successfully")
+                    logger.info(
+                        f"Record {record_id} in '{table}' updated successfully"
+                    )
                     return True
-                logger.warning(f"No record found with ID {record_id} in '{table}'")
+                logger.warning(
+                    f"No record found with ID {record_id} in '{table}'"
+                )
 
                 return False
         except psycopg2.Error as e:
             logger.error(f"Error updating '{table}': {e}")
             return False
 
-    def delete_by_id(self, record_id: int, table_name: str | None = None) -> bool:
+    def delete_by_id(
+        self, record_id: int, table_name: str | None = None
+    ) -> bool:
         table = self._ensure_table_name(table_name)
         query = f"DELETE FROM {table} WHERE id = %s;"
         try:
@@ -401,7 +425,9 @@ class Database:
                         f"Record {record_id} deleted from '{table}' successfully"
                     )
                     return True
-                logger.warning(f"No record found with ID {record_id} in '{table}'")
+                logger.warning(
+                    f"No record found with ID {record_id} in '{table}'"
+                )
                 return False
         except psycopg2.Error as e:
             logger.error(f"Error deleting from '{table}': {e}")
@@ -437,7 +463,9 @@ class Database:
         # Validate identifiers
         for field in fields:
             if not self._validate_identifier(field):
-                raise ValueError(f"Invalid column name in text search: {field}")
+                raise ValueError(
+                    f"Invalid column name in text search: {field}"
+                )
 
         conditions = []
         values: list[Any] = []
@@ -464,7 +492,9 @@ class Database:
                 results = cursor.fetchall()
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row, strict=True)) for row in results]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error searching in '{table}': {e}")
@@ -536,7 +566,9 @@ class Database:
                 results = cursor.fetchall()
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row, strict=True)) for row in results]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error searching with range in '{table}': {e}")
@@ -595,10 +627,14 @@ class Database:
                 text_conditions = []
                 search_pattern = f"%{search_term}%"
                 # Normalize to strings
-                search_fields = [getattr(f, "value", str(f)) for f in search_fields]
+                search_fields = [
+                    getattr(f, "value", str(f)) for f in search_fields
+                ]
                 for field in search_fields:
                     if not self._validate_identifier(field):
-                        raise ValueError(f"Invalid column name in text search: {field}")
+                        raise ValueError(
+                            f"Invalid column name in text search: {field}"
+                        )
                     text_conditions.append(f"LOWER({field}) LIKE LOWER(%s)")
                     values.append(search_pattern)
                 if text_conditions:
@@ -627,7 +663,9 @@ class Database:
                 results = cursor.fetchall()
                 if results:
                     columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row, strict=True)) for row in results]
+                    return [
+                        dict(zip(columns, row, strict=True)) for row in results
+                    ]
                 return []
         except psycopg2.Error as e:
             logger.error(f"Error searching in '{table}': {e}")
@@ -644,12 +682,7 @@ class Database:
     def insert_ad(
         self, ad_data: dict[str, Any], table_name: str | None = None
     ) -> int | None:
-        allowed_columns = None
-        try:
-            allowed_columns = AdColumns.get_insertable_columns()
-        except Exception:
-            # If AdColumns is not available or fails, proceed without filtering
-            allowed_columns = None
+        allowed_columns = AdColumns.get_insertable_columns()
         ret = self.insert(
             ad_data,
             table_name=table_name,
@@ -680,13 +713,18 @@ class Database:
         # Preserve previous default ordering if column exists; caller may override as needed
         try:
             return self.get_all(
-                table_name=table_name, limit=limit, order_by="insertion_time DESC"
+                table_name=table_name,
+                limit=limit,
+                order_by="insertion_time DESC",
             )
         except ValueError:
             return self.get_all(table_name=table_name, limit=limit)
 
     def update_ad(
-        self, ad_id: int, update_data: dict[str, Any], table_name: str | None = None
+        self,
+        ad_id: int,
+        update_data: dict[str, Any],
+        table_name: str | None = None,
     ) -> bool:
         # Prevent updating id and insertion_time by default
         return self.update_by_id(ad_id, update_data, table_name=table_name)
@@ -787,7 +825,11 @@ class Database:
             numerical_columns = None
 
         # Ensure default text fields if not provided (backward-compatible behavior)
-        if text_search and text_search.get("term") and not text_search.get("fields"):
+        if (
+            text_search
+            and text_search.get("term")
+            and not text_search.get("fields")
+        ):
             try:
                 default_fields = [
                     AdColumns.MAKE,
@@ -797,7 +839,9 @@ class Database:
                 ]
                 text_search = {
                     "term": text_search.get("term"),
-                    "fields": [getattr(f, "value", str(f)) for f in default_fields],
+                    "fields": [
+                        getattr(f, "value", str(f)) for f in default_fields
+                    ],
                 }
             except Exception:
                 pass
