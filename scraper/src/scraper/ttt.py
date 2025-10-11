@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 import pprint
 import random
 import re
@@ -7,6 +6,7 @@ import signal
 import subprocess
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -19,11 +19,11 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from shared.database import Database
+from scraper.paths import SCRAPER_DIR, SCRIPTS_DIR, TOR_PATH
+
+from shared.database import AdColumns, Database
 from shared.logging_config import get_logger, setup_logging
 from shared.translations import TRANSLATIONS
-
-from scraper.paths import SCRAPER_DIR, SCRIPTS_DIR, TOR_PATH
 
 PAGE_TIMEOUT = 30
 
@@ -47,13 +47,15 @@ class TorFirefoxScraper:
 
         self.tor_executable_path = str(TOR_PATH)
 
-        self.last_saved_ad_timestamp_path = SCRAPER_DIR / "last_saved_ad_timestamp.txt"
+        self.last_saved_ad_timestamp_path = (
+            SCRAPER_DIR / "last_saved_ad_timestamp.txt"
+        )
 
     def _download_tor_if_needed(self):
         if TOR_PATH.exists():
             logger.debug("Using existing tor instance")
             return
-        
+
         logger.debug("Local tor instance does not exist, downloading...")
 
         download_script = SCRIPTS_DIR / "download_tor.sh"
@@ -64,7 +66,7 @@ class TorFirefoxScraper:
         )
         if result.returncode != 0:
             raise RuntimeError("Failed to download Tor Browser")
-        
+
         logger.info("Tor Browser downloaded successfully")
 
     def start_tor(self):
@@ -300,7 +302,11 @@ DataDirectory /tmp/tor_data_selenium
             return
 
         for page_num in range(1, num_pages + 1):
-            page_url = f"{self.url_base}?page={page_num}" if page_num > 1 else self.url_base
+            page_url = (
+                f"{self.url_base}?page={page_num}"
+                if page_num > 1
+                else self.url_base
+            )
 
             try:
                 logger.info(f"Navigating to page {page_num}: {page_url}")
@@ -382,7 +388,7 @@ DataDirectory /tmp/tor_data_selenium
         )
         logger.info(f"Navigating to link: {link}")
         article_info = extract_article_info(self.driver)
-        article_info["url"] = link
+        article_info[AdColumns.URL] = link
         logger.info(f"Extracted article info: {pprint.pformat(article_info)}")
         self.save_article(article_info)
 
@@ -404,8 +410,10 @@ DataDirectory /tmp/tor_data_selenium
                 )
                 with Path(self.last_saved_ad_timestamp_path).open("w") as f:
                     f.write(datetime.now().isoformat())
-                logger.debug(f"Updated last saved ad timestamp in {self.last_saved_ad_timestamp_path}")
-                
+                logger.debug(
+                    f"Updated last saved ad timestamp in {self.last_saved_ad_timestamp_path}"
+                )
+
             else:
                 logger.error("Failed to save article to database")
         except Exception as e:
@@ -426,7 +434,6 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(f"Error during cleanup: {e}")
 
 
-# Utility functions from tor_scraper_selenium.py
 def get_ad_links(page_ads: list[WebElement]) -> list[str]:
     """Extract ad links from page ads"""
     ad_links = []
@@ -555,23 +562,29 @@ def transform_data(data):
             return price
 
     transformations = {
-        "manufacture_year": lambda x: year_transform(x),
-        "model_year": lambda x: year_transform(x),
-        "mileage": lambda x: int(x.split()[0].replace(".", "")),
-        "power": lambda x: int(x.split()[0]),
-        "service_book": lambda x: boolean_transform(x),
-        "fuel_consumption": lambda x: float(x.split()[0].replace(",", ".")),
-        "average_co2_emission": lambda x: float(
+        AdColumns.MANUFACTURE_YEAR: lambda x: year_transform(x),
+        AdColumns.MODEL_YEAR: lambda x: year_transform(x),
+        AdColumns.MILEAGE: lambda x: int(x.split()[0].replace(".", "")),
+        AdColumns.POWER: lambda x: int(x.split()[0]),
+        AdColumns.SERVICE_BOOK: lambda x: boolean_transform(x),
+        AdColumns.FUEL_CONSUMPTION: lambda x: float(
             x.split()[0].replace(",", ".")
         ),
-        "owner": lambda x: int(x.split()[0]) if x.split()[0].isdigit() else x,
-        "displacement": lambda x: int(x.replace(".", "").replace(" cm3", "")),
-        "in_traffic_since": lambda x: year_transform(x),
-        "first_registration_in_croatia": lambda x: year_transform(x),
-        "garaged": lambda x: boolean_transform(x),
-        "video_call_viewing": lambda x: boolean_transform(x),
-        "gas": lambda x: boolean_transform(x),
-        "price": lambda x: price_transform(x),
+        AdColumns.AVERAGE_CO2_EMISSION: lambda x: float(
+            x.split()[0].replace(",", ".")
+        ),
+        AdColumns.OWNER: lambda x: int(x.split()[0])
+        if x.split()[0].isdigit()
+        else x,
+        AdColumns.DISPLACEMENT: lambda x: int(
+            x.replace(".", "").replace(" cm3", "")
+        ),
+        AdColumns.IN_TRAFFIC_SINCE: lambda x: year_transform(x),
+        AdColumns.FIRST_REGISTRATION_IN_CROATIA: lambda x: year_transform(x),
+        AdColumns.GARAGED: lambda x: boolean_transform(x),
+        AdColumns.VIDEO_CALL_VIEWING: lambda x: boolean_transform(x),
+        AdColumns.GAS: lambda x: boolean_transform(x),
+        AdColumns.PRICE: lambda x: price_transform(x),
     }
 
     transformed_data = {}
@@ -580,7 +593,7 @@ def transform_data(data):
             try:
                 transformed_data[key] = transformations[key](value)
             except Exception as e:
-                logger.debug(f"Error transforming {key}: {e}")
+                logger.warning(f"Error transforming {key}: {e}")
                 transformed_data[key] = value  # fallback to original value
         else:
             transformed_data[key] = value  # no transformation needed
@@ -603,9 +616,9 @@ def extract_article_info(driver: WebDriver) -> dict[str, Any]:
             date_time_obj = datetime.strptime(
                 published_elem.text, date_time_format
             )
-            ad_details["date_created"] = date_time_obj.isoformat()
+            ad_details[AdColumns.DATE_CREATED] = date_time_obj.isoformat()
         except Exception as e:
-            logger.debug(f"Error extracting publication date: {e}")
+            logger.error(f"Error extracting publication date: {e}")
 
         # Extract price
         try:
@@ -613,9 +626,9 @@ def extract_article_info(driver: WebDriver) -> dict[str, Any]:
                 By.CLASS_NAME, "ClassifiedDetailSummary-priceDomestic"
             )
             price = price_elem.text.strip()
-            ad_details["price"] = price
+            ad_details[AdColumns.PRICE] = price
         except Exception as e:
-            logger.debug(f"Error extracting price: {e}")
+            logger.error(f"Error extracting price: {e}")
 
         # Extract ad dates and duration
         try:
@@ -629,13 +642,15 @@ def extract_article_info(driver: WebDriver) -> dict[str, Any]:
                     ad_duration,
                     datetime.strptime(ad_date_created, "%d.%m.%Y. u %H:%M"),
                 )
-                ad_details["ad_duration"] = (
+                ad_details[AdColumns.AD_DURATION] = (
                     ad_duration_parsed.isoformat()
                     if ad_duration_parsed
-                    else ""
+                    else (
+                        datetime.now() + timedelta(days=180)
+                    ).isoformat()  # if expiry date is "do prodaje", set to 6 months from now
                 )
         except Exception as e:
-            logger.debug(f"Error extracting ad duration: {e}")
+            logger.error(f"Error extracting ad duration: {e}")
 
         return transform_data(ad_details)
 

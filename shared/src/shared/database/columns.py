@@ -1,4 +1,4 @@
-from enum import auto, StrEnum
+from enum import StrEnum, auto
 
 
 class ConversationsColumns(StrEnum):
@@ -21,6 +21,7 @@ class AdColumns(StrEnum):
 
     # User data columns
     DATE_CREATED = auto()
+    AD_DURATION = auto()
     PRICE = auto()
     LOCATION = auto()
     MAKE = auto()

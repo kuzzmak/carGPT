@@ -1,6 +1,5 @@
 from shared.database.columns import AdColumns, ConversationsColumns
 
-
 CONVERSATIONS_TABLE_COLUMNS_SQL = f"""
     {ConversationsColumns.ID} SERIAL PRIMARY KEY,
     {ConversationsColumns.SESSION_ID} UUID UNIQUE NOT NULL,
@@ -14,6 +13,7 @@ ADS_TABLE_COLUMNS_SQL = f"""
     {AdColumns.URL} TEXT,
     {AdColumns.INSERTION_TIME} TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     {AdColumns.DATE_CREATED} TIMESTAMP NOT NULL,
+    {AdColumns.AD_DURATION} TIMESTAMP NOT NULL,
     {AdColumns.PRICE} NUMERIC(10, 2),
     {AdColumns.LOCATION} CITEXT,
     {AdColumns.MAKE} CITEXT,

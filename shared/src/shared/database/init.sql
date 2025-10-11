@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS ads (
     url TEXT UNIQUE NOT NULL,
     insertion_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     date_created TIMESTAMP NOT NULL,
+    ad_duration TIMESTAMP NOT NULL, 
     price NUMERIC(10, 2),
     location CITEXT,
     make CITEXT,
