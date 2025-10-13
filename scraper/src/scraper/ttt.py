@@ -219,7 +219,7 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(f"Tor connection test failed: {e}")
             return False
 
-    def setup_firefox_with_tor(self):
+    def setup_firefox_with_tor(self) -> bool:
         """Setup Firefox WebDriver with Tor proxy"""
         try:
             # Firefox options
@@ -294,13 +294,43 @@ DataDirectory /tmp/tor_data_selenium
         except Exception as e:
             logger.error(f"Error setting up Firefox with Tor: {e}")
             return False
+        
+    def get_new_identity(self) -> None:
+        self.cleanup()
+        time.sleep(2)
+
+        if not self.start_tor():
+            logger.error("Failed to restart Tor")
+            return
+        
+        if not self.setup_firefox_with_tor():
+            logger.error("Failed to restart Firefox")
+            return
+        
+        logger.info("Successfully restarted Tor and Firefox for new identity")
+
+    def goto(self, url: str) -> None:
+        """Navigate to a URL"""
+        if not self.driver:
+            err = "WebDriver not initialized"
+            logger.error(err)
+            raise RuntimeError(err)
+
+        try:
+            self.driver.get(url)
+            WebDriverWait(self.driver, PAGE_TIMEOUT).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            logger.info(f"Navigated to {url}")
+        except TimeoutException:
+            logger.error(f"Timeout loading page: {url}")
+            raise
+        except Exception as e:
+            logger.error(f"Error navigating to {url}: {e}")
+            raise
 
     def scrape_njuskalo_cars(self, num_pages=1):
         """Scrape the Njuškalo cars page(s)"""
-        if not self.driver:
-            logger.error("WebDriver not initialized")
-            return
-
         for page_num in range(1, num_pages + 1):
             page_url = (
                 f"{self.url_base}?page={page_num}"
@@ -309,32 +339,8 @@ DataDirectory /tmp/tor_data_selenium
             )
 
             try:
-                logger.info(f"Navigating to page {page_num}: {page_url}")
-                self.driver.get(page_url)
-
-                # Wait for page to load
-                wait = WebDriverWait(self.driver, PAGE_TIMEOUT)
-
-                # Wait for car listings to load
-                try:
-                    wait.until(
-                        EC.presence_of_element_located((By.TAG_NAME, "body"))
-                    )
-                    logger.info(f"Page {page_num} loaded successfully")
-                except TimeoutException:
-                    logger.warning(
-                        f"Timeout waiting for page {page_num} to load, going to next page..."
-                    )
-                    continue
-
-                # Get page title to check for captcha or errors
-                # TODO: check this
-                # page_title = self.driver.title
-                # logger.info(f"Page {page_num} title: {page_title}")
-
-                # if "captcha" in page_title.lower() or "shield" in page_title.lower():
-                #     logger.warning(f"CAPTCHA detected on page {page_num}, skipping...")
-                #     continue
+                logger.info(f"Navigating to page: {page_url}")
+                self.goto(page_url)
 
                 # Get ads using the improved function
                 ads = get_ads(self.driver)
@@ -355,39 +361,116 @@ DataDirectory /tmp/tor_data_selenium
                 for ad_link in ad_links:
                     try:
                         self.handle_link(ad_link)
-                        delay = random.randint(1, 10)
-                        logger.info(
-                            f"Waiting {delay:.2f} seconds before next link..."
-                        )
-                        time.sleep(delay)
                     except Exception as e:
                         logger.error(f"Error handling link {ad_link}: {e}")
-                        continue
 
-                # Add delay between pages
-                if page_num < num_pages:
-                    delay = random.uniform(2, 5)
-                    logger.info(
-                        f"Waiting {delay:.2f} seconds before next page..."
-                    )
-                    time.sleep(delay)
+                        page_blocked = self.is_blocked_page()
+
+                        if page_blocked:
+                            logger.info(f"Blocked/error page detected at {ad_link}, getting new identity...")
+                            self.get_new_identity()
+                            self.handle_link(ad_link)
+                        else:
+                            logger.info(f"Continuing to next link after error on {ad_link}")
+                            continue
+
+                    # delay = random.randint(1, 10)
+                    # logger.info(
+                    #     f"Waiting {delay:.2f} seconds before next link..."
+                    # )
+                    # time.sleep(delay)
+
 
             except Exception as e:
                 logger.error(f"Error scraping page {page_num}: {e}")
                 continue
 
+            # Add delay between pages
+            # delay = random.uniform(2, 5)
+            # logger.info(
+            #     f"Waiting {delay:.2f} seconds before next page..."
+            # )
+            # time.sleep(delay)
+
+    def extract_article_info(self) -> dict[str, Any]:
+        """Extract detailed information from a car ad page"""
+        if not self.driver:
+            err = "WebDriver not initialized"
+            logger.error(err)
+            raise RuntimeError(err)
+
+        left_column, right_column = get_ad_columns(self.driver)
+        ad_details = get_ad_details(left_column, right_column)
+
+        # Extract publication date
+        try:
+            published_elem = self.driver.find_element(
+                By.CLASS_NAME, "ClassifiedDetailSystemDetails-listData"
+            )
+            date_time_format = "%d.%m.%Y. u %H:%M"
+            date_time_obj = datetime.strptime(
+                published_elem.text, date_time_format
+            )
+            ad_details[AdColumns.DATE_CREATED] = date_time_obj.isoformat()
+        except Exception as e:
+            logger.error(f"Error extracting publication date: {e}")
+            raise
+
+        # Extract price
+        try:
+            price_elem = self.driver.find_element(
+                By.CLASS_NAME, "ClassifiedDetailSummary-priceDomestic"
+            )
+            price = price_elem.text.strip()
+            ad_details[AdColumns.PRICE] = price
+        except Exception as e:
+            logger.error(f"Error extracting price: {e}")
+            raise
+
+        # Extract ad dates and duration
+        try:
+            ad_dates = self.driver.find_elements(
+                By.CLASS_NAME, "ClassifiedDetailSystemDetails-listData"
+            )
+            if len(ad_dates) >= 2:
+                ad_date_created = ad_dates[0].text.strip()
+                ad_duration = ad_dates[1].text.strip()
+                ad_expires = parse_date_string(
+                    ad_duration,
+                    datetime.strptime(ad_date_created, "%d.%m.%Y. u %H:%M"),
+                )
+                ad_details[AdColumns.AD_EXPIRES] = (
+                    ad_expires.isoformat()
+                    if ad_expires
+                    else (
+                        datetime.now() + timedelta(days=180)
+                    ).isoformat()  # if expiry date is "do prodaje", set to 6 months from now
+                )
+        except Exception as e:
+            logger.error(f"Error extracting ad duration: {e}")
+            raise
+
+        return transform_data(ad_details)
+
     def handle_link(self, link: str) -> None:
         """Handle individual ad link - extract info and save to database"""
         if not self.driver:
-            logger.error("WebDriver not initialized")
-            return
+            err = "WebDriver not initialized"
+            logger.error(err)
+            raise RuntimeError(err)
 
         self.driver.get(link)
         WebDriverWait(self.driver, PAGE_TIMEOUT).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
         logger.info(f"Navigating to link: {link}")
-        article_info = extract_article_info(self.driver)
+
+        try:
+            article_info = self.extract_article_info()
+        except Exception as e:
+            logger.error(f"Error extracting article info from {link}: {e}")
+            raise
+        
         article_info[AdColumns.URL] = link
         logger.info(f"Extracted article info: {pprint.pformat(article_info)}")
         self.save_article(article_info)
@@ -418,6 +501,32 @@ DataDirectory /tmp/tor_data_selenium
                 logger.error("Failed to save article to database")
         except Exception as e:
             logger.error(f"Error saving article to database: {e}")
+
+    def is_blocked_page(self) -> bool:
+        """Check if the current page is a blocked/error page"""
+        if not self.driver:
+            err = "WebDriver not initialized"
+            logger.error(err)
+            raise RuntimeError(err)
+
+        try:
+            body_text = self.driver.find_element(By.TAG_NAME, "body").text.lower()
+            blocked_phrases = [
+                "i apologize for the inconvenience",
+                "access denied",
+                "captcha",
+                "unusual traffic",
+                "temporarily blocked"
+            ]
+            
+            for phrase in blocked_phrases:
+                if phrase in body_text:
+                    logger.warning(f"Blocked page detected: '{phrase}' found")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error checking for blocked page: {e}")
+            return False
 
     def cleanup(self):
         """Clean up resources"""
@@ -480,7 +589,9 @@ def round_up_to_next_hour(dt: datetime) -> datetime:
     return dt.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
 
 
-def parse_date_string(date_str: str, base_time: datetime | None = None):
+def parse_date_string(
+    date_str: str, base_time: datetime | None = None
+) -> datetime | None:
     """
     Parses strings like '26 dana i 21 sat' into a datetime object rounded up to the next full hour.
     Returns None for 'do prodaje'.
@@ -599,64 +710,6 @@ def transform_data(data):
             transformed_data[key] = value  # no transformation needed
 
     return transformed_data
-
-
-def extract_article_info(driver: WebDriver) -> dict[str, Any]:
-    """Extract detailed information from a car ad page"""
-    try:
-        left_column, right_column = get_ad_columns(driver)
-        ad_details = get_ad_details(left_column, right_column)
-
-        # Extract publication date
-        try:
-            published_elem = driver.find_element(
-                By.CLASS_NAME, "ClassifiedDetailSystemDetails-listData"
-            )
-            date_time_format = "%d.%m.%Y. u %H:%M"
-            date_time_obj = datetime.strptime(
-                published_elem.text, date_time_format
-            )
-            ad_details[AdColumns.DATE_CREATED] = date_time_obj.isoformat()
-        except Exception as e:
-            logger.error(f"Error extracting publication date: {e}")
-
-        # Extract price
-        try:
-            price_elem = driver.find_element(
-                By.CLASS_NAME, "ClassifiedDetailSummary-priceDomestic"
-            )
-            price = price_elem.text.strip()
-            ad_details[AdColumns.PRICE] = price
-        except Exception as e:
-            logger.error(f"Error extracting price: {e}")
-
-        # Extract ad dates and duration
-        try:
-            ad_dates = driver.find_elements(
-                By.CLASS_NAME, "ClassifiedDetailSystemDetails-listData"
-            )
-            if len(ad_dates) >= 2:
-                ad_date_created = ad_dates[0].text.strip()
-                ad_duration = ad_dates[1].text.strip()
-                ad_duration_parsed = parse_date_string(
-                    ad_duration,
-                    datetime.strptime(ad_date_created, "%d.%m.%Y. u %H:%M"),
-                )
-                ad_details[AdColumns.AD_DURATION] = (
-                    ad_duration_parsed.isoformat()
-                    if ad_duration_parsed
-                    else (
-                        datetime.now() + timedelta(days=180)
-                    ).isoformat()  # if expiry date is "do prodaje", set to 6 months from now
-                )
-        except Exception as e:
-            logger.error(f"Error extracting ad duration: {e}")
-
-        return transform_data(ad_details)
-
-    except Exception as e:
-        logger.error(f"Error extracting article info: {e}")
-        return {}
 
 
 def main():
