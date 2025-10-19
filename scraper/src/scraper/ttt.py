@@ -48,8 +48,9 @@ class TorFirefoxScraper:
 
         self.tor_executable_path = str(TOR_PATH)
 
-        self.last_saved_ad_timestamp_path = (
-            SCRAPER_DIR / "last_saved_ad_timestamp.txt"
+        self.ending_ad_timestamp_path = SCRAPER_DIR / "ending_ad_timestamp.txt"
+        self.starting_ad_timestamp_path = (
+            SCRAPER_DIR / "starting_ad_timestamp.txt"
         )
 
     def _download_tor_if_needed(self):
@@ -353,6 +354,14 @@ DataDirectory /tmp/tor_data_selenium
 
     def scrape_njuskalo_cars(self, num_pages=1):
         """Scrape the Njuškalo cars page(s)"""
+        # Record starting timestamp at the beginning of scraping session
+        if not Path(self.starting_ad_timestamp_path).exists():
+            with Path(self.starting_ad_timestamp_path).open("w") as f:
+                f.write(datetime.now().isoformat())
+            logger.info(
+                f"Created starting ad timestamp in {self.starting_ad_timestamp_path}"
+            )
+
         for page_num in range(1, num_pages + 1):
             page_url = (
                 f"{self.url_base}?page={page_num}"
@@ -516,10 +525,12 @@ DataDirectory /tmp/tor_data_selenium
                 logger.info(
                     f"Successfully saved article to database with ID: {ad_id}"
                 )
-                with Path(self.last_saved_ad_timestamp_path).open("w") as f:
+
+                # Update ending ad timestamp (most recent ad saved)
+                with Path(self.ending_ad_timestamp_path).open("w") as f:
                     f.write(datetime.now().isoformat())
                 logger.debug(
-                    f"Updated last saved ad timestamp in {self.last_saved_ad_timestamp_path}"
+                    f"Updated ending ad timestamp in {self.ending_ad_timestamp_path}"
                 )
             else:
                 # Check if ad already exists
@@ -529,7 +540,7 @@ DataDirectory /tmp/tor_data_selenium
                         criteria, table_name=ADS_TABLE_NAME
                     )
                     if existing_ad:
-                        logger.warning (
+                        logger.warning(
                             f"Tried to save article with url {article_info.get(AdColumns.URL)}, but it already exists in the database"
                         )
                     else:
