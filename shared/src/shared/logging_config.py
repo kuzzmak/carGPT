@@ -10,6 +10,49 @@ import yaml
 from shared.paths import SHARED_DIR
 
 
+class ColoredFormatter(logging.Formatter):
+    """
+    Custom formatter that adds colors to log levels in console output.
+    Colors are only applied when outputting to a terminal (TTY).
+    """
+
+    # ANSI color codes
+    COLORS = {
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
+    }
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    def __init__(self, *args, use_colors: bool = True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_colors = use_colors and sys.stdout.isatty()
+
+    def format(self, record: logging.LogRecord) -> str:
+        if self.use_colors:
+            # Save the original levelname
+            original_levelname = record.levelname
+
+            # Add color to levelname
+            color = self.COLORS.get(record.levelname, self.RESET)
+            record.levelname = (
+                f"{color}{self.BOLD}{record.levelname}{self.RESET}"
+            )
+
+            # Format the message
+            formatted = super().format(record)
+
+            # Restore original levelname for other handlers
+            record.levelname = original_levelname
+
+            return formatted
+
+        return super().format(record)
+
+
 class LoggerManager:
     """
     Centralized logger management with configuration file support.
@@ -173,12 +216,18 @@ class LoggerManager:
                     "format": '{"timestamp": "%(asctime)s", "logger": "%(name)s", "level": "%(levelname)s", "file": "%(filename)s", "line": %(lineno)d, "message": "%(message)s"}',
                     "datefmt": "%Y-%m-%d %H:%M:%S",
                 },
+                "console_colored": {
+                    "()": "logging.ColoredFormatter",
+                    "format": "%(asctime)s - %(name)-20s - %(levelname)-8s - %(message)s",
+                    "datefmt": "%H:%M:%S",
+                    "use_colors": True,
+                },
             },
             "handlers": {
                 "console": {
                     "class": "logging.StreamHandler",
                     "level": "INFO",
-                    "formatter": "simple",
+                    "formatter": "console_colored",
                     "stream": "ext://sys.stdout",
                 },
                 "file": {
@@ -228,6 +277,9 @@ class LoggerManager:
             self._config.get("custom", {}).get("log_directory", "logs")
         )
         log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Register custom formatter
+        logging.ColoredFormatter = ColoredFormatter
 
         # Apply the logging configuration
         logging.config.dictConfig(self._config)

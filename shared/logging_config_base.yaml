@@ -19,8 +19,10 @@ formatters:
     datefmt: "%Y-%m-%d %H:%M:%S"
   
   console_colored:
+    (): logging.ColoredFormatter
     format: "%(asctime)s - %(name)-20s - %(levelname)-8s - %(message)s"
     datefmt: "%H:%M:%S"
+    use_colors: true
 
 # Base handlers that can be referenced by specific configurations
 handlers:
