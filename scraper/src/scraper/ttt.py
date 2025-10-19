@@ -22,6 +22,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from scraper.paths import SCRAPER_DIR, SCRIPTS_DIR, TOR_PATH
 
 from shared.database import AdColumns, Database
+from shared.database.database import ADS_TABLE_NAME
 from shared.logging_config import get_logger, setup_logging
 from shared.translations import TRANSLATIONS
 
@@ -294,7 +295,7 @@ DataDirectory /tmp/tor_data_selenium
         except Exception as e:
             logger.error(f"Error setting up Firefox with Tor: {e}")
             return False
-        
+
     def get_new_identity(self) -> None:
         self.cleanup()
         time.sleep(2)
@@ -302,11 +303,11 @@ DataDirectory /tmp/tor_data_selenium
         if not self.start_tor():
             logger.error("Failed to restart Tor")
             return
-        
+
         if not self.setup_firefox_with_tor():
             logger.error("Failed to restart Firefox")
             return
-        
+
         logger.info("Successfully restarted Tor and Firefox for new identity")
 
     def goto(self, url: str) -> None:
@@ -329,6 +330,27 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(f"Error navigating to {url}: {e}")
             raise
 
+    def get_ads(self):
+        """Get ads from the current page"""
+        if not self.driver:
+            err = "WebDriver not initialized"
+            logger.error(err)
+            raise RuntimeError(err)
+
+        try:
+            ads = (
+                self.driver.find_element(
+                    By.CSS_SELECTOR, ".EntityList--ListItemRegularAd"
+                )
+                .find_element(By.CLASS_NAME, "EntityList-items")
+                .find_elements(By.CLASS_NAME, "EntityList-item")
+            )
+            logger.info(f"Found {len(ads)} ads on the page")
+            return ads
+        except Exception as e:
+            logger.error(f"Error finding ads: {e}")
+            return []
+
     def scrape_njuskalo_cars(self, num_pages=1):
         """Scrape the Njuškalo cars page(s)"""
         for page_num in range(1, num_pages + 1):
@@ -343,7 +365,7 @@ DataDirectory /tmp/tor_data_selenium
                 self.goto(page_url)
 
                 # Get ads using the improved function
-                ads = get_ads(self.driver)
+                ads = self.get_ads()
                 if not ads:
                     logger.warning(f"No ads found on page {page_num}")
                     continue
@@ -367,11 +389,15 @@ DataDirectory /tmp/tor_data_selenium
                         page_blocked = self.is_blocked_page()
 
                         if page_blocked:
-                            logger.info(f"Blocked/error page detected at {ad_link}, getting new identity...")
+                            logger.info(
+                                f"Blocked/error page detected at {ad_link}, getting new identity..."
+                            )
                             self.get_new_identity()
                             self.handle_link(ad_link)
                         else:
-                            logger.info(f"Continuing to next link after error on {ad_link}")
+                            logger.info(
+                                f"Continuing to next link after error on {ad_link}"
+                            )
                             continue
 
                     # delay = random.randint(1, 10)
@@ -379,7 +405,6 @@ DataDirectory /tmp/tor_data_selenium
                     #     f"Waiting {delay:.2f} seconds before next link..."
                     # )
                     # time.sleep(delay)
-
 
             except Exception as e:
                 logger.error(f"Error scraping page {page_num}: {e}")
@@ -470,22 +495,22 @@ DataDirectory /tmp/tor_data_selenium
         except Exception as e:
             logger.error(f"Error extracting article info from {link}: {e}")
             raise
-        
+
         article_info[AdColumns.URL] = link
         logger.info(f"Extracted article info: {pprint.pformat(article_info)}")
         self.save_article(article_info)
 
     def save_article(self, article_info: dict[str, Any]) -> None:
         """Save article information to database"""
+        if not article_info:
+            logger.warning("No article info to save")
+            return
+
+        if not self.database:
+            logger.error("Database not available for saving")
+            return
+
         try:
-            if not article_info:
-                logger.warning("No article info to save")
-                return
-
-            if not self.database:
-                logger.error("Database not available for saving")
-                return
-
             ad_id = self.database.insert_ad(article_info)
             if ad_id:
                 logger.info(
@@ -496,9 +521,24 @@ DataDirectory /tmp/tor_data_selenium
                 logger.debug(
                     f"Updated last saved ad timestamp in {self.last_saved_ad_timestamp_path}"
                 )
-
             else:
-                logger.error("Failed to save article to database")
+                # Check if ad already exists
+                criteria = {AdColumns.URL: article_info.get(AdColumns.URL)}
+                try:
+                    existing_ad = self.database.get_by_criteria(
+                        criteria, table_name=ADS_TABLE_NAME
+                    )
+                    if existing_ad:
+                        logger.warning (
+                            f"Tried to save article with url {article_info.get(AdColumns.URL)}, but it already exists in the database"
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to save article with url {article_info.get(AdColumns.URL)} to database for unknown reasons"
+                        )
+                except Exception as e:
+                    logger.error(f"Error checking for existing ad: {e}")
+
         except Exception as e:
             logger.error(f"Error saving article to database: {e}")
 
@@ -510,15 +550,17 @@ DataDirectory /tmp/tor_data_selenium
             raise RuntimeError(err)
 
         try:
-            body_text = self.driver.find_element(By.TAG_NAME, "body").text.lower()
+            body_text = self.driver.find_element(
+                By.TAG_NAME, "body"
+            ).text.lower()
             blocked_phrases = [
                 "i apologize for the inconvenience",
                 "access denied",
                 "captcha",
                 "unusual traffic",
-                "temporarily blocked"
+                "temporarily blocked",
             ]
-            
+
             for phrase in blocked_phrases:
                 if phrase in body_text:
                     logger.warning(f"Blocked page detected: '{phrase}' found")
@@ -563,23 +605,6 @@ def get_ad_links(page_ads: list[WebElement]) -> list[str]:
         except Exception as e:
             logger.debug(f"Error extracting ad link: {e}")
     return ad_links
-
-
-def get_ads(driver: WebDriver):
-    """Get ads from the current page"""
-    try:
-        ads = (
-            driver.find_element(
-                By.CSS_SELECTOR, ".EntityList--ListItemRegularAd"
-            )
-            .find_element(By.CLASS_NAME, "EntityList-items")
-            .find_elements(By.CLASS_NAME, "EntityList-item")
-        )
-        logger.info(f"Found {len(ads)} ads on the page")
-        return ads
-    except Exception as e:
-        logger.error(f"Error finding ads: {e}")
-        return []
 
 
 def round_up_to_next_hour(dt: datetime) -> datetime:
