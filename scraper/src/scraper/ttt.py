@@ -319,11 +319,12 @@ DataDirectory /tmp/tor_data_selenium
             raise RuntimeError(err)
 
         try:
+            logger.debug(f"Navigating to URL: {url}")
             self.driver.get(url)
             WebDriverWait(self.driver, PAGE_TIMEOUT).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
-            logger.info(f"Navigated to {url}")
+            logger.debug(f"Navigated to {url}")
         except TimeoutException:
             logger.error(f"Timeout loading page: {url}")
             raise
@@ -370,7 +371,6 @@ DataDirectory /tmp/tor_data_selenium
             )
 
             try:
-                logger.info(f"Navigating to page: {page_url}")
                 self.goto(page_url)
 
                 # Get ads using the improved function
@@ -493,11 +493,7 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(err)
             raise RuntimeError(err)
 
-        self.driver.get(link)
-        WebDriverWait(self.driver, PAGE_TIMEOUT).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
-        logger.info(f"Navigating to link: {link}")
+        self.goto(link)
 
         try:
             article_info = self.extract_article_info()
