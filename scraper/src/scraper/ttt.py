@@ -49,9 +49,6 @@ class TorFirefoxScraper:
         self.tor_executable_path = str(TOR_PATH)
 
         self.ending_ad_timestamp_path = SCRAPER_DIR / "ending_ad_timestamp.txt"
-        self.starting_ad_timestamp_path = (
-            SCRAPER_DIR / "starting_ad_timestamp.txt"
-        )
 
     def _download_tor_if_needed(self):
         if TOR_PATH.exists():
@@ -353,14 +350,19 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(f"Error finding ads: {e}")
             return []
 
-    def scrape_njuskalo_cars(self, num_pages=1):
+    def scrape_njuskalo_cars(self, num_pages: int = 1):
         """Scrape the Njuškalo cars page(s)"""
-        # Record starting timestamp at the beginning of scraping session
-        if not Path(self.starting_ad_timestamp_path).exists():
-            with Path(self.starting_ad_timestamp_path).open("w") as f:
-                f.write(datetime.now().isoformat())
+        saved_first_article = False
+
+        last_scraped_ad_timestamp = None
+        if Path(self.ending_ad_timestamp_path).exists():
+            with Path(self.ending_ad_timestamp_path).open("r") as f:
+                last_scraped_ad_timestamp = f.read().strip()
             logger.info(
-                f"Created starting ad timestamp in {self.starting_ad_timestamp_path}"
+                f"Found existing ending ad timestamp: {last_scraped_ad_timestamp}"
+            )
+            last_scraped_ad_timestamp = datetime.fromisoformat(
+                last_scraped_ad_timestamp
             )
 
         for page_num in range(1, num_pages + 1):
@@ -391,7 +393,7 @@ DataDirectory /tmp/tor_data_selenium
 
                 for ad_link in ad_links:
                     try:
-                        self.handle_link(ad_link)
+                        article_info = self.handle_link(ad_link)
                     except Exception as e:
                         logger.error(f"Error handling link {ad_link}: {e}")
 
@@ -402,12 +404,33 @@ DataDirectory /tmp/tor_data_selenium
                                 f"Blocked/error page detected at {ad_link}, getting new identity..."
                             )
                             self.get_new_identity()
-                            self.handle_link(ad_link)
+                            article_info = self.handle_link(ad_link)
                         else:
                             logger.info(
                                 f"Continuing to next link after error on {ad_link}"
                             )
                             continue
+
+                    if not saved_first_article:
+                        # Save the timestamp of the first saved article so on next run we can end here
+                        with Path(self.ending_ad_timestamp_path).open(
+                            "w"
+                        ) as f:
+                            f.write(article_info[AdColumns.DATE_CREATED])
+                        logger.info(
+                            f"Created ending ad timestamp in {self.ending_ad_timestamp_path}"
+                        )
+                        saved_first_article = True
+
+                    if last_scraped_ad_timestamp:
+                        last_ad_timestamp = datetime.fromisoformat(
+                            article_info[AdColumns.DATE_CREATED]
+                        )
+                        if last_ad_timestamp >= last_scraped_ad_timestamp:
+                            logger.info(
+                                f"Reached previously scraped ad from {last_scraped_ad_timestamp}, stopping scraper."
+                            )
+                            return
 
                     # delay = random.randint(1, 10)
                     # logger.info(
@@ -486,7 +509,7 @@ DataDirectory /tmp/tor_data_selenium
 
         return transform_data(ad_details)
 
-    def handle_link(self, link: str) -> None:
+    def handle_link(self, link: str) -> dict[str, Any]:
         """Handle individual ad link - extract info and save to database"""
         if not self.driver:
             err = "WebDriver not initialized"
@@ -503,17 +526,19 @@ DataDirectory /tmp/tor_data_selenium
 
         article_info[AdColumns.URL] = link
         logger.info(f"Extracted article info: {pprint.pformat(article_info)}")
-        self.save_article(article_info)
 
-    def save_article(self, article_info: dict[str, Any]) -> None:
+        self.save_article(article_info)
+        return article_info
+
+    def save_article(self, article_info: dict[str, Any]) -> int | None:
         """Save article information to database"""
         if not article_info:
             logger.warning("No article info to save")
-            return
+            return None
 
         if not self.database:
             logger.error("Database not available for saving")
-            return
+            return None
 
         try:
             ad_id = self.database.insert_ad(article_info)
@@ -521,30 +546,24 @@ DataDirectory /tmp/tor_data_selenium
                 logger.info(
                     f"Successfully saved article to database with ID: {ad_id}"
                 )
+                return ad_id
 
-                # Update ending ad timestamp (most recent ad saved)
-                with Path(self.ending_ad_timestamp_path).open("w") as f:
-                    f.write(datetime.now().isoformat())
-                logger.debug(
-                    f"Updated ending ad timestamp in {self.ending_ad_timestamp_path}"
+            # Check if ad already exists
+            criteria = {AdColumns.URL.value: article_info.get(AdColumns.URL)}
+            try:
+                existing_ad = self.database.get_by_criteria(
+                    criteria, table_name=ADS_TABLE_NAME
                 )
-            else:
-                # Check if ad already exists
-                criteria = {AdColumns.URL: article_info.get(AdColumns.URL)}
-                try:
-                    existing_ad = self.database.get_by_criteria(
-                        criteria, table_name=ADS_TABLE_NAME
+                if existing_ad:
+                    logger.warning(
+                        f"Tried to save article with url {article_info.get(AdColumns.URL)}, but it already exists in the database"
                     )
-                    if existing_ad:
-                        logger.warning(
-                            f"Tried to save article with url {article_info.get(AdColumns.URL)}, but it already exists in the database"
-                        )
-                    else:
-                        logger.error(
-                            f"Failed to save article with url {article_info.get(AdColumns.URL)} to database for unknown reasons"
-                        )
-                except Exception as e:
-                    logger.error(f"Error checking for existing ad: {e}")
+                else:
+                    logger.error(
+                        f"Failed to save article with url {article_info.get(AdColumns.URL)} to database for unknown reasons"
+                    )
+            except Exception as e:
+                logger.error(f"Error checking for existing ad: {e}")
 
         except Exception as e:
             logger.error(f"Error saving article to database: {e}")
