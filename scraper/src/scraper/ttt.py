@@ -1,7 +1,6 @@
 import os
 import pprint
 import random
-import re
 import signal
 import subprocess
 import time
@@ -14,23 +13,23 @@ from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from scraper.logger import logger
 from scraper.paths import SCRAPER_DIR, SCRIPTS_DIR, TOR_PATH
+from scraper.utils import (
+    get_ad_details,
+    get_ad_links,
+    parse_date_string,
+    transform_data,
+)
 
 from shared.database import AdColumns, Database
 from shared.database.database import ADS_TABLE_NAME
-from shared.logging_config import get_logger, setup_logging
-from shared.translations import TRANSLATIONS
 
 PAGE_TIMEOUT = 30
-
-# Configure logging
-setup_logging(SCRAPER_DIR / "logging_config.yaml")
-logger = get_logger("scraper")
 
 
 class TorFirefoxScraper:
@@ -426,7 +425,7 @@ DataDirectory /tmp/tor_data_selenium
                         last_ad_timestamp = datetime.fromisoformat(
                             article_info[AdColumns.DATE_CREATED]
                         )
-                        if last_ad_timestamp >= last_scraped_ad_timestamp:
+                        if last_ad_timestamp <= last_scraped_ad_timestamp:
                             logger.info(
                                 f"Reached previously scraped ad from {last_scraped_ad_timestamp}, stopping scraper."
                             )
@@ -449,6 +448,24 @@ DataDirectory /tmp/tor_data_selenium
             # )
             # time.sleep(delay)
 
+    def get_ad_columns(self) -> tuple[list[WebElement], list[WebElement]]:
+        """Get the left and right columns of ad details"""
+        if not self.driver:
+            err = "WebDriver not initialized"
+            logger.error(err)
+            raise RuntimeError(err)
+
+        ad_info = self.driver.find_element(
+            By.CLASS_NAME, "ClassifiedDetailBasicDetails-list"
+        )
+        ad_left_column = ad_info.find_elements(
+            By.CLASS_NAME, "ClassifiedDetailBasicDetails-listTerm"
+        )
+        ad_right_column = ad_info.find_elements(
+            By.CLASS_NAME, "ClassifiedDetailBasicDetails-listDefinition"
+        )
+        return ad_left_column, ad_right_column
+
     def extract_article_info(self) -> dict[str, Any]:
         """Extract detailed information from a car ad page"""
         if not self.driver:
@@ -456,7 +473,7 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(err)
             raise RuntimeError(err)
 
-        left_column, right_column = get_ad_columns(self.driver)
+        left_column, right_column = self.get_ad_columns()
         ad_details = get_ad_details(left_column, right_column)
 
         # Extract publication date
@@ -611,158 +628,6 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(f"Error during cleanup: {e}")
 
 
-def get_ad_links(page_ads: list[WebElement]) -> list[str]:
-    """Extract ad links from page ads"""
-    ad_links = []
-    for ad in page_ads:
-        try:
-            ad_class = ad.get_attribute("class")
-            if (
-                ad_class is not None
-                and "EntityList-bannerContainer" in ad_class
-            ):
-                logger.debug("Skipping banner container")
-                continue
-            article = ad.find_element(By.TAG_NAME, "article")
-            article_title = article.find_element(By.CLASS_NAME, "entity-title")
-            article_link = article_title.find_element(By.TAG_NAME, "a")
-            article_link_url = article_link.get_attribute("href")
-            ad_links.append(article_link_url)
-        except Exception as e:
-            logger.debug(f"Error extracting ad link: {e}")
-    return ad_links
-
-
-def round_up_to_next_hour(dt: datetime) -> datetime:
-    """Rounds a datetime up to the next full hour."""
-    if dt.minute == 0 and dt.second == 0 and dt.microsecond == 0:
-        return dt
-    return dt.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-
-
-def parse_date_string(
-    date_str: str, base_time: datetime | None = None
-) -> datetime | None:
-    """
-    Parses strings like '26 dana i 21 sat' into a datetime object rounded up to the next full hour.
-    Returns None for 'do prodaje'.
-    """
-    if base_time is None:
-        base_time = datetime.now()
-
-    date_str = date_str.strip().lower()
-
-    if date_str == "do prodaje":
-        return None
-
-    # Match e.g. '13 dana i 8 sati', '0 dana i 2 sata'
-    pattern = r"(\d+)\s*dana?(?:\s*i\s*(\d+)\s*sat[ai]?)?"
-
-    match = re.match(pattern, date_str)
-
-    if not match:
-        raise ValueError(f"Unrecognized date format: '{date_str}'")
-
-    days = int(match.group(1))
-    hours = int(match.group(2)) if match.group(2) else 0
-
-    result = base_time + timedelta(days=days, hours=hours)
-    return round_up_to_next_hour(result)
-
-
-def get_ad_columns(
-    driver: WebDriver,
-) -> tuple[list[WebElement], list[WebElement]]:
-    """Get the left and right columns of ad details"""
-    ad_info = driver.find_element(
-        By.CLASS_NAME, "ClassifiedDetailBasicDetails-list"
-    )
-    ad_left_column = ad_info.find_elements(
-        By.CLASS_NAME, "ClassifiedDetailBasicDetails-listTerm"
-    )
-    ad_right_column = ad_info.find_elements(
-        By.CLASS_NAME, "ClassifiedDetailBasicDetails-listDefinition"
-    )
-    return ad_left_column, ad_right_column
-
-
-def get_ad_details(
-    left_column: list[WebElement], right_column: list[WebElement]
-) -> dict[str, str]:
-    ad_details = {}
-    for prop_name, prop_value in zip(left_column, right_column, strict=True):
-        prop_name = prop_name.find_element(
-            By.CLASS_NAME, "ClassifiedDetailBasicDetails-textWrapContainer"
-        ).text
-        prop_value = prop_value.find_element(
-            By.CLASS_NAME, "ClassifiedDetailBasicDetails-textWrapContainer"
-        ).text
-        try:
-            ad_details[TRANSLATIONS[prop_name]] = prop_value
-        except KeyError:
-            print(f"No key for: {prop_name} - value: {prop_value}")
-
-    return ad_details
-
-
-def transform_data(data):
-    """Transform and clean extracted data"""
-
-    def year_transform(year: str):
-        return int(year.split(".")[0]) if "." in year else int(year)
-
-    def boolean_transform(value: str):
-        return value.lower() == "da"
-
-    def price_transform(price: str):
-        price = price.replace(".", "")
-        price = price.replace(",", ".")
-        price = price.replace("€", "").strip()
-        try:
-            return float(price)
-        except ValueError:
-            return price
-
-    transformations = {
-        AdColumns.MANUFACTURE_YEAR: lambda x: year_transform(x),
-        AdColumns.MODEL_YEAR: lambda x: year_transform(x),
-        AdColumns.MILEAGE: lambda x: int(x.split()[0].replace(".", "")),
-        AdColumns.POWER: lambda x: int(x.split()[0]),
-        AdColumns.SERVICE_BOOK: lambda x: boolean_transform(x),
-        AdColumns.FUEL_CONSUMPTION: lambda x: float(
-            x.split()[0].replace(",", ".")
-        ),
-        AdColumns.AVERAGE_CO2_EMISSION: lambda x: float(
-            x.split()[0].replace(",", ".")
-        ),
-        AdColumns.OWNER: lambda x: int(x.split()[0])
-        if x.split()[0].isdigit()
-        else x,
-        AdColumns.DISPLACEMENT: lambda x: int(
-            x.replace(".", "").replace(" cm3", "")
-        ),
-        AdColumns.IN_TRAFFIC_SINCE: lambda x: year_transform(x),
-        AdColumns.FIRST_REGISTRATION_IN_CROATIA: lambda x: year_transform(x),
-        AdColumns.GARAGED: lambda x: boolean_transform(x),
-        AdColumns.VIDEO_CALL_VIEWING: lambda x: boolean_transform(x),
-        AdColumns.GAS: lambda x: boolean_transform(x),
-        AdColumns.PRICE: lambda x: price_transform(x),
-    }
-
-    transformed_data = {}
-    for key, value in data.items():
-        if key in transformations:
-            try:
-                transformed_data[key] = transformations[key](value)
-            except Exception as e:
-                logger.warning(f"Error transforming {key}: {e}")
-                transformed_data[key] = value  # fallback to original value
-        else:
-            transformed_data[key] = value  # no transformation needed
-
-    return transformed_data
-
-
 def main():
     """Main function to run the scraper"""
     print("=== Tor + Firefox Selenium Scraper for Njuškalo ===\n")
@@ -772,7 +637,7 @@ def main():
 
     try:
         # Initialize and check database connection first
-        print("Step 1: Initializing database connection...")
+        print("Initializing database connection...")
         print(
             f"   Connecting to: {os.getenv('CARGPT_DB_HOST', 'localhost')}:{os.getenv('CARGPT_DB_PORT', '5432')}/{os.getenv('CARGPT_DB_NAME', 'ads_db')}"
         )
@@ -784,116 +649,39 @@ def main():
             if db.create_ads_table():
                 logger.info("Database table verified/created successfully")
                 print("✅ Database initialized successfully!")
-
-                # Show current database stats
-                try:
-                    current_ads = db.get_ads_count()
-                    print(f"📊 Current ads in database: {current_ads}")
-                except Exception:
-                    pass  # Don't fail if we can't get stats
-                print()
             else:
                 logger.error("Failed to create/verify database table")
                 print("\n" + "=" * 50)
                 print("DATABASE TROUBLESHOOTING:")
                 print("1. Start PostgreSQL database using Docker:")
-                print("   cd docker/database && make start")
-                print(
-                    "   OR: cd docker/database && make start-all (includes pgAdmin)"
-                )
+                print("   make up-db")
                 print("")
                 print("2. Check if database is running:")
-                print("   cd docker/database && make status")
-                print("   cd docker/database && make test-connection")
+                print("   make status")
                 print("")
                 print("3. Environment variables (current values):")
-                print(
-                    f"   - CARGPT_DB_NAME: {os.getenv('CARGPT_DB_NAME', 'ads_db')}"
-                )
-                print(
-                    f"   - CARGPT_DB_USER: {os.getenv('CARGPT_DB_USER', 'adsuser')}"
-                )
-                print(
-                    f"   - CARGPT_DB_HOST: {os.getenv('CARGPT_DB_HOST', 'localhost')}"
-                )
-                print(
-                    f"   - CARGPT_DB_PORT: {os.getenv('CARGPT_DB_PORT', '5432')}"
-                )
-                print("")
-                print("4. Database management commands:")
-                print(
-                    "   cd docker/database && make help  # Show all available commands"
-                )
-                print(
-                    "   cd docker/database && make reset # Reset database (removes all data)"
-                )
+                print(f"   - CARGPT_DB_NAME: {os.getenv('CARGPT_DB_NAME')}")
+                print(f"   - CARGPT_DB_USER: {os.getenv('CARGPT_DB_USER')}")
+                print(f"   - CARGPT_DB_HOST: {os.getenv('CARGPT_DB_HOST')}")
+                print(f"   - CARGPT_DB_PORT: {os.getenv('CARGPT_DB_PORT')}")
                 print("=" * 50)
                 return
 
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
-            print("\n" + "=" * 50)
-            print("DATABASE CONNECTION FAILED - TROUBLESHOOTING:")
-            print("")
-            print("🔧 Quick Setup (Docker - Recommended):")
-            print("   cd docker/database && make start")
-            print("   # This starts PostgreSQL with the correct configuration")
-            print("")
-            print("🔍 Check Database Status:")
-            print("   cd docker/database && make status")
-            print("   cd docker/database && make test-connection")
-            print("   cd docker/database && make logs  # View database logs")
-            print("")
-            print("🐳 Docker Commands:")
-            print("   cd docker/database && make help     # Show all commands")
-            print(
-                "   cd docker/database && make start-all # Start with pgAdmin UI"
-            )
-            print(
-                "   cd docker/database && make connect   # Connect to database CLI"
-            )
-            print("")
-            print("🧪 Test Database Connection:")
-            print("   python carGPT/database/example_usage.py")
-            print(
-                "   # This will test the connection and show sample operations"
-            )
-            print("")
-            print("📊 Current Environment Variables:")
-            print(
-                f"   - CARGPT_DB_NAME: {os.getenv('CARGPT_DB_NAME', 'ads_db (default)')}"
-            )
-            print(
-                f"   - CARGPT_DB_USER: {os.getenv('CARGPT_DB_USER', 'adsuser (default)')}"
-            )
-            print(
-                f"   - CARGPT_DB_HOST: {os.getenv('CARGPT_DB_HOST', 'localhost (default)')}"
-            )
-            print(
-                f"   - CARGPT_DB_PORT: {os.getenv('CARGPT_DB_PORT', '5432 (default)')}"
-            )
-            print("")
-            print(f"❌ Error Details: {e}")
-            print("=" * 50)
             return
 
         # Create scraper with database
         scraper = TorFirefoxScraper(database=db)
 
         # Start Tor
-        print("Step 2: Starting Tor...")
+        print("Starting Tor...")
         if not scraper.start_tor():
             logger.error("Failed to start Tor.")
-            print("\n" + "=" * 50)
-            print("TROUBLESHOOTING:")
-            print("1. Make sure Tor Browser is downloaded and extracted")
-            print("2. Or install Tor system-wide: sudo apt install tor")
-            print("3. Or manually start Tor Browser and run this script again")
-            print("=" * 50)
             return
 
         # Setup Firefox with Tor proxy
-        print("Step 3: Setting up Firefox with Tor proxy...")
+        print("Setting up Firefox with Tor proxy...")
         if not scraper.setup_firefox_with_tor():
             logger.error("Failed to setup Firefox with Tor.")
             print("\n" + "=" * 50)
@@ -909,7 +697,6 @@ def main():
             return
 
         # Scrape Njuškalo cars page
-        print("Step 4: Scraping Njuškalo cars page...")
         logger.info("Starting to scrape Njuškalo cars page...")
         scraper.scrape_njuskalo_cars(num_pages=5)
 
@@ -920,19 +707,6 @@ def main():
 
     except KeyboardInterrupt:
         print("\n🛑 Scraping interrupted by user")
-        # Still show database stats if available
-        if db is not None:
-            try:
-                total_ads = db.get_ads_count()
-                print(
-                    f"📊 Partial results - Total ads in database: {total_ads}"
-                )
-                if total_ads > 0:
-                    print(
-                        "💡 View saved data: cd docker/database && make list-ads"
-                    )
-            except Exception:
-                pass
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         print(f"\n❌ Unexpected error: {e}")
