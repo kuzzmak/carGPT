@@ -4,9 +4,10 @@ from datetime import datetime, timedelta
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
-from scraper.logger import logger
 from shared.database import AdColumns
 from shared.translations import TRANSLATIONS
+
+from scraper.logger import logger
 
 
 def transform_data(data):
