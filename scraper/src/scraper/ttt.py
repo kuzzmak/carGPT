@@ -5,7 +5,6 @@ import signal
 import subprocess
 import time
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import requests
@@ -354,8 +353,8 @@ DataDirectory /tmp/tor_data_selenium
         saved_first_article = False
 
         last_scraped_ad_timestamp = None
-        if Path(self.ending_ad_timestamp_path).exists():
-            with Path(self.ending_ad_timestamp_path).open("r") as f:
+        if self.ending_ad_timestamp_path.exists():
+            with self.ending_ad_timestamp_path.open("r") as f:
                 last_scraped_ad_timestamp = f.read().strip()
             logger.info(
                 f"Found existing ending ad timestamp: {last_scraped_ad_timestamp}"
@@ -378,6 +377,13 @@ DataDirectory /tmp/tor_data_selenium
                 ads = self.get_ads()
                 if not ads:
                     logger.warning(f"No ads found on page {page_num}")
+                    # Make new identity here if page is blocked
+                    page_blocked = self.is_blocked_page()
+                    if page_blocked:
+                        logger.info(
+                            f"Blocked page detected on page {page_num}, getting new identity..."
+                        )
+                        self.get_new_identity()
                     continue
 
                 # Get ad links
@@ -412,9 +418,7 @@ DataDirectory /tmp/tor_data_selenium
 
                     if not saved_first_article:
                         # Save the timestamp of the first saved article so on next run we can end here
-                        with Path(self.ending_ad_timestamp_path).open(
-                            "w"
-                        ) as f:
+                        with self.ending_ad_timestamp_path.open("w") as f:
                             f.write(article_info[AdColumns.DATE_CREATED])
                         logger.info(
                             f"Created ending ad timestamp in {self.ending_ad_timestamp_path}"
@@ -698,7 +702,7 @@ def main():
 
         # Scrape Njuškalo cars page
         logger.info("Starting to scrape Njuškalo cars page...")
-        scraper.scrape_njuskalo_cars(num_pages=5)
+        scraper.scrape_njuskalo_cars(num_pages=100)
 
         # Show database statistics
         print("\n✅ Scraping completed!")
