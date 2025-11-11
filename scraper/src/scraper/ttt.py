@@ -529,7 +529,7 @@ DataDirectory /tmp/tor_data_selenium
             raise
 
         return transform_data(ad_details)
-    
+
     def extract_image_urls(self) -> list[str]:
         """Extract image URLs from the ad page"""
         if not self.driver:
@@ -561,8 +561,10 @@ DataDirectory /tmp/tor_data_selenium
             logger.error(f"Error extracting image URLs: {e}")
 
         return image_urls
-    
-    def save_image_urls(self, ad_id: int | None, image_urls: list[str]) -> None:
+
+    def save_image_urls(
+        self, ad_id: int | None, image_urls: list[str]
+    ) -> None:
         """Save image URLs to database"""
         if not ad_id:
             logger.warning("No ad ID provided, skipping saving image URLs")

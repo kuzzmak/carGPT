@@ -1,4 +1,8 @@
-from shared.database.columns import AdColumns, ConversationsColumns, ImageColumns
+from shared.database.columns import (
+    AdColumns,
+    ConversationsColumns,
+    ImageColumns,
+)
 
 CONVERSATIONS_TABLE_COLUMNS_SQL = f"""
     {ConversationsColumns.ID} SERIAL PRIMARY KEY,

@@ -688,9 +688,7 @@ class Database:
         table = self._ensure_table_name(IMAGES_TABLE_NAME)
         return self.create_table(table, IMAGES_TABLE_COLUMNS_SQL)
 
-    def insert_ad(
-        self, ad_data: dict[str, Any]
-    ) -> int | None:
+    def insert_ad(self, ad_data: dict[str, Any]) -> int | None:
         allowed_columns = AdColumns.get_insertable_columns()
         ret = self.insert(
             ad_data,
