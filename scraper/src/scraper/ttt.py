@@ -529,6 +529,51 @@ DataDirectory /tmp/tor_data_selenium
             raise
 
         return transform_data(ad_details)
+    
+    def extract_image_urls(self) -> list[str]:
+        """Extract image URLs from the ad page"""
+        if not self.driver:
+            err = "WebDriver not initialized"
+            logger.error(err)
+            raise RuntimeError(err)
+
+        image_urls = []
+
+        try:
+            image_elements = self.driver.find_elements(
+                By.CLASS_NAME, "ClassifiedDetailGallery-slideImage"
+            )
+            for img_elem in image_elements:
+                img_url = img_elem.get_attribute("data-src")
+                if img_url:
+                    image_urls.append(img_url)
+                else:
+                    img_url = img_elem.get_attribute("src")
+                    if img_url:
+                        image_urls.append(img_url)
+                    else:
+                        logger.warning(
+                            "Image element found without src or data-src attribute"
+                        )
+            logger.debug(f"Extracted {len(image_urls)} image URLs")
+
+        except Exception as e:
+            logger.error(f"Error extracting image URLs: {e}")
+
+        return image_urls
+    
+    def save_image_urls(self, ad_id: int | None, image_urls: list[str]) -> None:
+        """Save image URLs to database"""
+        if not ad_id:
+            logger.warning("No ad ID provided, skipping saving image URLs")
+            return
+
+        try:
+            for idx, url in enumerate(image_urls):
+                if db_id := self.database.insert_image_url(ad_id, url, idx):
+                    logger.debug(f"Saved image URL with ID: {db_id}")
+        except Exception as e:
+            logger.error(f"Error saving image URLs to database: {e}")
 
     def handle_link(self, link: str) -> dict[str, Any]:
         """Handle individual ad link - extract info and save to database"""
@@ -548,7 +593,11 @@ DataDirectory /tmp/tor_data_selenium
         article_info[AdColumns.URL] = link
         logger.info(f"Extracted article info: {pprint.pformat(article_info)}")
 
-        self.save_article(article_info)
+        ad_id = self.save_article(article_info)
+
+        image_urls = self.extract_image_urls()
+        self.save_image_urls(ad_id, image_urls)
+
         return article_info
 
     def save_article(self, article_info: dict[str, Any]) -> int | None:
@@ -650,8 +699,8 @@ def main():
             logger.info("Database connection established successfully")
 
             # Create ads table if it doesn't exist
-            if db.create_ads_table():
-                logger.info("Database table verified/created successfully")
+            if db.create_ads_table() and db.create_images_table():
+                logger.info("Database tables verified/created successfully")
                 print("✅ Database initialized successfully!")
             else:
                 logger.error("Failed to create/verify database table")

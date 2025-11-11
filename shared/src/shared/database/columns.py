@@ -87,3 +87,10 @@ class AdColumns(StrEnum):
             cls.NUMBER_OF_DOORS,
             cls.NUMBER_OF_SEATS,
         ]
+
+
+class ImageColumns(StrEnum):
+    ID = auto()
+    AD_ID = auto()
+    IMAGE_URL = auto()
+    IMAGE_ORDER = auto()  # To maintain the order of images

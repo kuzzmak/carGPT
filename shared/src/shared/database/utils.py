@@ -1,4 +1,4 @@
-from shared.database.columns import AdColumns, ConversationsColumns
+from shared.database.columns import AdColumns, ConversationsColumns, ImageColumns
 
 CONVERSATIONS_TABLE_COLUMNS_SQL = f"""
     {ConversationsColumns.ID} SERIAL PRIMARY KEY,
@@ -51,4 +51,12 @@ ADS_TABLE_COLUMNS_SQL = f"""
     {AdColumns.SUSPENSION} CITEXT,
     {AdColumns.TIRE_SIZE} VARCHAR(20),
     {AdColumns.INTERNAL_CODE} VARCHAR(50)
+"""
+
+IMAGES_TABLE_COLUMNS_SQL = f"""
+    {ImageColumns.ID} SERIAL PRIMARY KEY,
+    {ImageColumns.AD_ID} INT REFERENCES ads(id) ON DELETE CASCADE,
+    {ImageColumns.IMAGE_URL} TEXT NOT NULL,
+    {ImageColumns.IMAGE_ORDER} INT DEFAULT 0,
+    UNIQUE ({ImageColumns.AD_ID}, {ImageColumns.IMAGE_ORDER})
 """

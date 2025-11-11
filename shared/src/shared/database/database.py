@@ -6,7 +6,10 @@ from typing import Any
 import psycopg2
 
 from shared.database import AdColumns
-from shared.database.utils import ADS_TABLE_COLUMNS_SQL
+from shared.database.utils import (
+    ADS_TABLE_COLUMNS_SQL,
+    IMAGES_TABLE_COLUMNS_SQL,
+)
 from shared.logging_config import get_logger
 
 # Set up logging
@@ -14,6 +17,7 @@ logger = get_logger("database")
 
 # Backward-compatibility constant; not used internally
 ADS_TABLE_NAME = "ads"
+IMAGES_TABLE_NAME = "ad_images"
 
 
 class Database:
@@ -674,19 +678,40 @@ class Database:
     # ----------------------
     # Backward-compatible ads-specific wrappers
     # ----------------------
-    def create_ads_table(self, table_name: str | None = None) -> bool:
+    def create_ads_table(self) -> bool:
         """Create the 'ads' table with predefined schema (backward compatibility)."""
-        table = self._ensure_table_name(table_name)
+        table = self._ensure_table_name(ADS_TABLE_NAME)
         return self.create_table(table, ADS_TABLE_COLUMNS_SQL)
 
+    def create_images_table(self) -> bool:
+        """Create the 'ad_images' table with predefined schema."""
+        table = self._ensure_table_name(IMAGES_TABLE_NAME)
+        return self.create_table(table, IMAGES_TABLE_COLUMNS_SQL)
+
     def insert_ad(
-        self, ad_data: dict[str, Any], table_name: str | None = None
+        self, ad_data: dict[str, Any]
     ) -> int | None:
         allowed_columns = AdColumns.get_insertable_columns()
         ret = self.insert(
             ad_data,
-            table_name=table_name,
+            table_name=ADS_TABLE_NAME,
             allowed_columns=allowed_columns,
+            returning="id",
+        )
+        return int(ret) if ret is not None else None
+
+    def insert_image_url(
+        self, ad_id: int, image_url: str, image_order: int = 0
+    ) -> int | None:
+        image_data = {
+            "ad_id": ad_id,
+            "image_url": image_url,
+            "image_order": image_order,
+        }
+        ret = self.insert(
+            image_data,
+            table_name=IMAGES_TABLE_NAME,
+            allowed_columns=["ad_id", "image_url", "image_order"],
             returning="id",
         )
         return int(ret) if ret is not None else None
