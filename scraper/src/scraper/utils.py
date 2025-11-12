@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
@@ -102,7 +102,7 @@ def parse_date_string(
     Returns None for 'do prodaje'.
     """
     if base_time is None:
-        base_time = datetime.now()
+        base_time = datetime.now(UTC)
 
     date_str = date_str.strip().lower()
 
