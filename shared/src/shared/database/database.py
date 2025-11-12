@@ -713,6 +713,12 @@ class Database:
             returning="id",
         )
         return int(ret) if ret is not None else None
+    
+    def get_images_by_ad_id(self, ad_id: int) -> list[dict[str, Any]]:
+        criteria = {"ad_id": ad_id}
+        return self.get_by_criteria(
+            criteria, table_name=IMAGES_TABLE_NAME or IMAGES_TABLE_NAME, order_by="image_order ASC"
+        )
 
     def get_ad_by_id(
         self, ad_id: int, table_name: str | None = None
