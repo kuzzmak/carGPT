@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -113,7 +113,7 @@ class ChatResponse(BaseModel):
     """Model for chat response."""
 
     response: str = Field(..., description="Assistant response")
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Conversation(BaseModel):
