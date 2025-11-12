@@ -4,7 +4,7 @@ import random
 import signal
 import subprocess
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import requests
@@ -521,7 +521,7 @@ DataDirectory /tmp/tor_data_selenium
                     ad_expires.isoformat()
                     if ad_expires
                     else (
-                        datetime.now() + timedelta(days=180)
+                        datetime.now(UTC) + timedelta(days=180)
                     ).isoformat()  # if expiry date is "do prodaje", set to 6 months from now
                 )
         except Exception as e:
