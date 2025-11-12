@@ -84,6 +84,22 @@ CREATE INDEX IF NOT EXISTS idx_ads_manufacture_year ON ads(manufacture_year);
 CREATE INDEX IF NOT EXISTS idx_ads_insertion_time ON ads(insertion_time);
 CREATE INDEX IF NOT EXISTS idx_ads_make_model ON ads(make, model);
 
+-- Create the ad_images table for storing car ad images
+CREATE TABLE IF NOT EXISTS ad_images (
+    id SERIAL PRIMARY KEY,
+    ad_id INT NOT NULL REFERENCES ads(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL,
+    image_order INT DEFAULT 0,
+    UNIQUE (ad_id, image_order)
+);
+
+-- Grant table permissions to the application user
+GRANT ALL PRIVILEGES ON TABLE ad_images TO :db_user;
+GRANT USAGE, SELECT ON SEQUENCE ad_images_id_seq TO :db_user;
+
+-- Create index for efficient lookups by ad_id
+CREATE INDEX IF NOT EXISTS idx_ad_images_ad_id ON ad_images(ad_id);
+
 CREATE TABLE IF NOT EXISTS conversations (
     id SERIAL PRIMARY KEY,
     session_id UUID UNIQUE NOT NULL,
