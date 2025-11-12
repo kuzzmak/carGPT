@@ -1,6 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 
 from agents import Agent, Runner
 from agents.mcp import MCPServerStreamableHttp, MCPServerStreamableHttpParams
@@ -42,12 +42,12 @@ perplexity_mcp_server: MCPServerStreamableHttp
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global ads_db_mcp_server, perplexity_mcp_server
-    # ads_db_mcp_server = await initialize_ads_db_mcp_server()
+    ads_db_mcp_server = await initialize_ads_db_mcp_server()
     # perplexity_mcp_server = await initialize_perplexity_mcp_server()
 
     yield
 
-    # await ads_db_mcp_server.cleanup()
+    await ads_db_mcp_server.cleanup()
     # await perplexity_mcp_server.cleanup()
     logger.info("MCP server connections closed")
 
@@ -119,7 +119,7 @@ def get_agent():
             name="CarGPT Assistant",
             instructions=SYSTEM_PROMPT,
             model=CHAT_MODEL,
-            # mcp_servers=[ads_db_mcp_server, perplexity_mcp_server],
+            mcp_servers=[ads_db_mcp_server],
         )
         logger.info("AI agent initialized successfully with both MCP servers")
         return agent
@@ -142,7 +142,7 @@ async def health_check():
 
     return HealthResponse(
         status="healthy" if database_connected else "unhealthy",
-        timestamp=datetime.now(),
+        timestamp=datetime.now(UTC),
         database_connected=database_connected,
     )
 
@@ -328,6 +328,9 @@ def get_session(session_id: str) -> PostgreSQLSession:
 
 
 def save_conversation(session_id: str, user_id: str):
+    logger.debug(
+        f"Saving conversation with session_id: {session_id}, user_id: {user_id}"
+    )
     try:
         # Try to insert a new conversation
         record = {
@@ -338,8 +341,9 @@ def save_conversation(session_id: str, user_id: str):
         if id:
             logger.debug(f"Created new conversation with ID: {id}")
         else:
+            logger.debug(f"Failed to create new conversation with session_id: {session_id}, updating existing")
             # Insert failed, update existing conversation's timestamp
-            update_data = {"updated_at": datetime.now()}
+            update_data = {"updated_at": datetime.now(UTC)}
             existing_conversations = db.get_by_criteria(
                 {"session_id": session_id}, table_name=CONVERSATIONS_TABLE_NAME
             )
@@ -392,6 +396,7 @@ async def get_user_conversations(user_id: str):
             order_by="updated_at DESC",
         )
         if not len(sessions):
+            logger.debug(f"No conversations found for user {user_id}")
             return []
 
         conversations = []
@@ -405,6 +410,8 @@ async def get_user_conversations(user_id: str):
                     else msg["message_data"]["content"][0]["text"],
                 )
                 for msg in session_messages
+                if "role"
+                in msg["message_data"]  # Every message beside tool calls
             ]
 
             logger.debug(
@@ -472,6 +479,23 @@ async def chat(request: ChatRequest, agent: Agent = Depends(get_agent)):
         )
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
+        raise HTTPException(
+            status_code=500, detail="Internal server error"
+        ) from e
+
+
+@app.get("/ads/{ad_id}/images", response_model=list[str])
+async def get_ad_images(ad_id: int):
+    """Get all image URLs for a specific ad by ID."""
+    try:
+        image_urls = db.get_images_by_ad_id(ad_id)
+        if not image_urls:
+            logger.warning(f"No images found for Ad ID {ad_id}")
+            return []
+
+        return [img["image_url"] for img in image_urls]
+    except Exception as e:
+        logger.error(f"Error fetching images for ad {ad_id}: {e}")
         raise HTTPException(
             status_code=500, detail="Internal server error"
         ) from e
