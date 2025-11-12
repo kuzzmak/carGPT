@@ -1,5 +1,7 @@
 import datetime
+import json
 import os
+import re
 from uuid import uuid4
 
 import requests
@@ -10,6 +12,81 @@ from htbuilder.units import rem
 BACKEND_URL = os.environ["BACKEND_URL"]
 CHAT_ENDPOINT = f"{BACKEND_URL}/chat"
 USER_ID = os.environ["USER_ID"]
+
+
+def render_ad_card(ad_data: dict):
+    """Render a single ad card with images."""
+    with st.container(border=True):
+        # Title
+        st.markdown(
+            f"### {ad_data.get('make', '')} {ad_data.get('model', '')}"
+        )
+
+        # Display images in a carousel or gallery
+        images = ad_data.get("images", [])
+        if images:
+            # Show up to 3 images in columns
+            num_images = min(3, len(images))
+            cols = st.columns(num_images)
+            for idx, img_url in enumerate(images[:num_images]):
+                with cols[idx]:
+                    try:
+                        st.image(img_url, use_container_width=True)
+                    except Exception:
+                        st.caption("⚠️ Image unavailable")
+
+        # Display key metrics in columns
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if ad_data.get("price"):
+                st.metric("Price", f"€{ad_data['price']:,.0f}")
+        with col2:
+            if ad_data.get("manufacture_year"):
+                st.metric("Year", ad_data["manufacture_year"])
+        with col3:
+            if ad_data.get("mileage"):
+                st.metric("Mileage", f"{ad_data['mileage']:,} km")
+
+        # Additional details in two columns
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if ad_data.get("location"):
+                st.text(f"📍 {ad_data['location']}")
+            if ad_data.get("engine"):
+                st.text(f"⚙️ {ad_data['engine']}")
+        with col_b:
+            if ad_data.get("transmission"):
+                st.text(f"🔧 {ad_data['transmission']}")
+            if ad_data.get("power"):
+                st.text(f"🏎️ {ad_data['power']} kW")
+
+        # Link to full ad
+        if ad_data.get("url"):
+            st.link_button(
+                "🔗 View Full Ad", ad_data["url"], use_container_width=True
+            )
+
+
+def parse_response_for_ads(response_text: str) -> list[dict]:
+    """
+    Parse the assistant's response to extract ad data from JSON code blocks.
+    This extracts structured ad data that the LLM formats in ```json blocks.
+    """
+    ads = []
+    # Look for JSON blocks in the response (both single-line and multi-line)
+    json_pattern = r"```json\s*(\{.*?\})\s*```"
+    matches = re.finditer(json_pattern, response_text, re.DOTALL)
+
+    for match in matches:
+        try:
+            ad_data = json.loads(match.group(1))
+            # Verify it's ad data by checking for required fields
+            if "id" in ad_data and "make" in ad_data:
+                ads.append(ad_data)
+        except json.JSONDecodeError:
+            continue
+
+    return ads
 
 
 def fetch_conversations():
@@ -65,9 +142,8 @@ def fetch_conversations():
 
             return conversations
 
-        else:
-            st.error(f"Failed to fetch conversations: {response.status_code}")
-            return []
+        st.error(f"Failed to fetch conversations: {response.status_code}")
+        return []
 
     except requests.exceptions.RequestException as e:
         st.error(f"Connection error while fetching conversations: {e}")
@@ -286,6 +362,14 @@ if user_message:
 
         # Store the final response
         response = accumulated_response
+
+    # Parse and display ad cards if any were found in the response
+    ads = parse_response_for_ads(response)
+    if ads:
+        st.markdown("---")
+        st.markdown("### 🚗 Suggested Vehicles")
+        for ad in ads:
+            render_ad_card(ad)
 
     # Add messages to chat history.
     st.session_state.messages.append({"role": "user", "content": user_message})
