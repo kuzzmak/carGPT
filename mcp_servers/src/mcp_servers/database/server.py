@@ -36,7 +36,16 @@ def get_ad_by_id(ad_id: int) -> dict[str, Any] | None:
         return {"error": "Database connection not available"}
 
     logger.debug(f"get_ad_by_id({ad_id})")
-    return db.get_ad_by_id(ad_id)
+    ad = db.get_ad_by_id(ad_id)
+
+    # Enrich ad with image URLs
+    if ad and ad.get("id"):
+        image_data = db.get_images_by_ad_id(ad["id"])
+        ad["images"] = (
+            [img["image_url"] for img in image_data] if image_data else []
+        )
+
+    return ad
 
 
 @mcp.tool()
@@ -163,6 +172,15 @@ def search_ads(
         limit=limit,
     )
 
+    # Enrich ads with image URLs
+    for ad in ads:
+        ad_id = ad.get("id")
+        if ad_id:
+            image_data = db.get_images_by_ad_id(ad_id)
+            ad["images"] = (
+                [img["image_url"] for img in image_data] if image_data else []
+            )
+
     logger.debug("Found ads:")
     for ad in ads:
         logger.debug(ad)
@@ -235,7 +253,18 @@ def search_ads_by_text(
     logger.debug(
         f"search_ads_by_text(search_term='{search_term}', fields={fields}, limit={limit})"
     )
-    return db.search_ads_by_text(search_term, fields, limit)
+    ads = db.search_ads_by_text(search_term, fields, limit)
+
+    # Enrich ads with image URLs
+    for ad in ads:
+        ad_id = ad.get("id")
+        if ad_id:
+            image_data = db.get_images_by_ad_id(ad_id)
+            ad["images"] = (
+                [img["image_url"] for img in image_data] if image_data else []
+            )
+
+    return ads
 
 
 @mcp.tool()
