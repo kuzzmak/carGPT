@@ -355,11 +355,21 @@ if user_message:
         with st.spinner("Thinking..."):
             # Create the placeholder after the spinner so content appears below it
             response_placeholder = st.empty()
+            json_start = False
+            raw_response = ""
             for chunk in response_gen:
-                accumulated_response += chunk
-                # Update the placeholder with the accumulated response as markdown
-                response_placeholder.markdown(accumulated_response)
+                raw_response += chunk.strip()
+                if not json_start:
+                    if chunk == "```":
+                        json_start = True
+                        continue
 
+                    accumulated_response += chunk
+                    response_placeholder.markdown(accumulated_response)
+
+                if raw_response.endswith("```"):
+                    json_start = False
+                
         # Store the final response
         response = accumulated_response
 
@@ -376,3 +386,6 @@ if user_message:
     st.session_state.messages.append(
         {"role": "assistant", "content": response}
     )
+
+
+# ff.close()
