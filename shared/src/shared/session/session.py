@@ -7,7 +7,7 @@ that integrates with the existing agents.memory.session framework.
 import asyncio
 import json
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 try:
     import psycopg2

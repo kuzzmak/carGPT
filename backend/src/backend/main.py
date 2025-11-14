@@ -375,6 +375,7 @@ def get_session_messages(session_id: str):
         messages = db.get_by_criteria(
             {"session_id": session_id},
             table_name="agent_messages",
+            order_by="created_at, id ASC",
         )
         if messages:
             logger.debug(
