@@ -330,7 +330,7 @@ if "prev_question_timestamp" not in st.session_state:
     )
 
 # Display chat messages from history as speech bubbles.
-for i, message in enumerate(st.session_state.messages):
+for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["role"] == "assistant":
             st.container()  # Fix ghost message bug.
