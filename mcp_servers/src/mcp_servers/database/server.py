@@ -66,7 +66,7 @@ def search_ads(
     min_price: float | None = None,
     max_price: float | None = None,
     search_term: str | None = None,
-    limit: int = 100,
+    limit: int = 3,
 ) -> list[dict[str, Any]]:
     """Search ads with support for exact matches, price range, and text search.
 
@@ -80,7 +80,7 @@ def search_ads(
         min_price: Minimum price in the range (inclusive)
         max_price: Maximum price in the range (inclusive)
         search_term: Text to search for across make, model, location, and type fields (case-insensitive)
-        limit: Maximum number of results to return (default: 100)
+        limit: Maximum number of results to return (default: 3)
 
     Returns:
         List of ad dictionaries matching the criteria, ordered by insertion_time DESC (newest first)
@@ -190,7 +190,7 @@ def search_ads(
 
 @mcp.tool()
 def search_ads_by_text(
-    search_term: str, fields: list[str] | None = None, limit: int = 100
+    search_term: str, fields: list[str] | None = None, limit: int = 3
 ) -> list[dict[str, Any]]:
     """Search ads by text across multiple fields (default: make, model, location, type).
 
@@ -203,7 +203,7 @@ def search_ads_by_text(
                 Available fields: make, model, location, type, engine, transmission, condition,
                 owner, fuel_consumption, eco_category, warranty, chassis_type, drive_type,
                 color, suspension, tire_size, internal_code
-        limit: Maximum number of results to return (default: 100)
+        limit: Maximum number of results to return (default: 3)
 
     Returns:
         List of ad dictionaries where the search term was found, ordered by insertion_time DESC
